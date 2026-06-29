@@ -1,72 +1,6 @@
 import React, { useState, useRef } from "react";
 import "./App.css";
-
-const COMPONENTS = [
-  {
-    id: "lesson-number",
-    label: "Lesson Number",
-    description: "e.g.  LESSON 1",
-    preview: "LESSON 03",
-    category: "header",
-  },
-  {
-    id: "lesson-title",
-    label: "Lesson Title",
-    description: "e.g.  Introduction to Biology",
-    preview: "Introduction to Biology",
-    category: "header",
-  },
-  {
-    id: "chapter-overview",
-    label: "Chapter Overview",
-    description: "CHAPTER OUTLINE label",
-    preview: "CHAPTER OUTLINE",
-    category: "text-media",
-  },
-  {
-    id: "topic",
-    label: "Topic",
-    description: "e.g.  1.1 Topic Title",
-    preview: "Introduction to Biology",
-    category: "text-media",
-  },
-  {
-    id: "section-title",
-    label: "Section Title",
-    description: "e.g.  1.1 Themes and Concepts of Biology",
-    preview: "1.1 Themes and Concepts of Biology",
-    category: "header",
-  },
-  {
-    id: "logo-with-text",
-    label: "Logo with Text",
-    description: "Small logo + editable learning link text",
-    preview: "logo  Start typing...",
-    category: "header",
-  },
-  {
-    id: "text",
-    label: "Text",
-    description: "Normal body text, Arial 11pt",
-    preview: "Start typing your text here...",
-    category: "text-media",
-  },
-  {
-    id: "figure-image",
-    label: "Image",
-    description: "Upload image + FIGURE caption",
-    preview: null,
-    category: "text-media",
-  },
-  {
-    id: "figure-caption",
-    label: "Caption",
-    description: "e.g.  FIGURE 1.1 Description…",
-    preview: "caption",
-    previewPrefix: "FIGURE 1.1",
-    category: "text-media",
-  },
-];
+import { STYLES, COMPONENTS, COMPONENT_CONFIG } from "./constants";
 
 const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
 const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com";
@@ -90,7 +24,7 @@ const DotsIcon = () => (
 );
 
 const renderComponentCard = ({ comp, loading, handleCardClick }) => {
-  if (!comp || comp.id === "figure-image" || comp.id === "logo-with-text") return null;
+  if (!comp || comp.id === "figure-image") return null;
   const isActive = loading === comp.id;
 
   return (
@@ -133,13 +67,14 @@ export default function App() {
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
-  const [linkImageFile, setLinkImageFile] = useState(null);
-  const [linkImagePreview, setLinkImagePreview] = useState(null);
-  const linkFileInputRef = useRef(null);
   const [apiLoadingStatus, setApiLoadingStatus] = useState(false);
   const [apiType, setApiType] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
+  const [linkImageFile, setLinkImageFile] = useState(null);
+  const [linkImagePreview, setLinkImagePreview] = useState(null);
+  const linkFileInputRef = useRef(null);
+
 
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
@@ -396,6 +331,7 @@ export default function App() {
   const headerComponents = COMPONENTS.filter((c) => c.category === "header");
   const textMediaComponents = COMPONENTS.filter((c) => c.category === "text-media");
 
+
   return (
     <div className="addin-root">
       {/* ── Header ── */}
@@ -632,6 +568,7 @@ function buildMeta(id) {
   return {
     type: id,
     label: comp?.label ?? id,
+    preview: comp?.preview ?? "",
     version: "1.0",
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
@@ -642,96 +579,106 @@ async function insertComponent(id) {
   return Word.run(async (context) => {
     const range = context.document.body.getRange("End");
     const meta = buildMeta(id);
-    switch (id) {
-      case "lesson-number": await insertLessonHeader(range, context, meta); break;
-      case "lesson-title": await insertLessonTitle(range, context, meta); break;
-      case "chapter-overview": await insertSectionSubHeader(range, context, meta); break;
-      case "topic": await insertTopic(range, context, meta); break;
-      case "section-title": await insertSectionTitle(range, context, meta); break;
-      case "text": await insertBodyParagraph(range, context, meta); break;
-      case "figure-caption": await insertFigureCaption(range, context, meta); break;
+
+    if (id === "figure-caption") {
+      return insertFigureCaption(range, context, meta);
     }
+
+    if (id === "bullet-list") {
+      return insertBulletItem(range, context, meta);
+    }
+
+    const config = COMPONENT_CONFIG[id];
+
+    if (config) {
+      await insertStyledComponent(range, context, meta, config);
+    }
+
     await context.sync();
   });
 }
 
-async function insertLessonHeader(range, context, meta) {
-  const p = range.insertParagraph("LESSON", Word.InsertLocation.after);
-  p.spaceBefore = 20; p.spaceAfter = 0;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 14; r.font.bold = false;
-  r.font.color = "#2E74B5";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
-
-async function insertLessonTitle(range, context, meta) {
-  const p = range.insertParagraph("", Word.InsertLocation.after);
-  p.spaceBefore = 2; p.spaceAfter = 14;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 28; r.font.bold = false;
-  r.font.color = "#1F1F1F";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
-
-async function insertSectionSubHeader(range, context, meta) {
-  const p = range.insertParagraph("CHAPTER OUTLINE", Word.InsertLocation.after);
-  p.spaceBefore = 8; p.spaceAfter = 4;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 11; r.font.bold = false;
-  r.font.color = "#2E74B5";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
-
-async function insertTopic(range, context, meta) {
-  const p = range.insertParagraph("", Word.InsertLocation.after);
-  p.spaceAfter = 2;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 11; r.font.bold = true;
-  r.font.color = "#1F1F1F";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
-
-async function insertSectionTitle(range, context, meta) {
-  const p = range.insertParagraph("Section", Word.InsertLocation.after);
-  p.spaceBefore = 16; p.spaceAfter = 8;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 18; r.font.bold = false;
-  r.font.color = "#2E74B5";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
-
-async function insertBodyParagraph(range, context, meta) {
-  const p = range.insertParagraph("Start typing your text here...", Word.InsertLocation.after);
-  p.spaceBefore = 0; p.spaceAfter = 12;
-  const r = p.getRange();
-  r.font.name = "Arial"; r.font.size = 10; r.font.bold = false;
-  r.font.color = "#1F1F1F";
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
+function applyStyle(range, style) {
+  range.font.name = style.font;
+  range.font.size = style.size;
+  range.font.color = style.color;
+  range.font.bold = style.bold || false;
 }
 
 async function insertFigureCaption(range, context, meta) {
-  const label = range.insertParagraph(" Caption text here.", Word.InsertLocation.after);
-  const caption = label.insertText("FIGURE 1.1", Word.InsertLocation.start);
-  caption.font.name = "Arial"; caption.font.size = 9;
-  caption.font.bold = true; caption.font.color = "#C00000";
+  const label = range.insertParagraph(
+    " Caption text here.",
+    Word.InsertLocation.after
+  );
+  const figureRange = label.insertText(
+    "FIGURE 1.1",
+    Word.InsertLocation.start
+  );
   const labelRange = label.getRange();
-  labelRange.font.name = "Arial"; labelRange.font.size = 9; labelRange.font.bold = false;
-  labelRange.font.color = "#404040";
-  labelRange.spaceBefore = 10;
+  applyStyle(labelRange, STYLES.imageFigureText);
+  applyStyle(figureRange, STYLES.imageFigureNumber);
   await context.sync();
   wrapInContentControl(label, meta);
+  await context.sync();
+}
+
+async function insertFigureImage(base64) {
+  return Word.run(async (context) => {
+    const meta = buildMeta("figure-image");
+    const range = await getCursorRange(context);
+    const imagePara = range.insertParagraph("", Word.InsertLocation.after);
+    imagePara.spaceAfter = 10;
+    const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
+    img.width = 414;
+    img.alignment = Word.Alignment.centered;
+    const captionPara = imagePara.insertParagraph(" Caption text here.", Word.InsertLocation.after);
+    const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
+    caption.font.bold = true;
+    caption.font.color = "#C31427";
+    await context.sync();
+    const startRange = imagePara.getRange();
+    const endRange = captionPara.getRange();
+    await context.sync();
+    const figureRange = startRange.expandTo(endRange);
+    const cc = figureRange.insertContentControl();
+    cc.title = meta.label;
+    cc.tag = JSON.stringify(meta);
+    cc.appearance = Word.ContentControlAppearance.boundingBox;
+    await context.sync();
+  });
+}
+
+async function insertBulletItem(range, context, meta) {
+  const p = range.insertParagraph("Type your list item here", Word.InsertLocation.after);
+  const r = p.getRange();
+  applyStyle(r, STYLES.bullestList);
+  p.startNewList();
+  p.listItem.level = 0;
+  await context.sync();
+  wrapInContentControl(p, meta);
+  await context.sync();
+}
+
+async function insertStyledComponent(range, context, meta, config) {
+  const paragraph = range.insertParagraph(
+    meta.preview,
+    Word.InsertLocation.after
+  );
+
+  paragraph.spaceAfter = 10;
+
+  const paragraphRange = paragraph.getRange();
+
+  applyStyle(paragraphRange, config.style);
+
+  if (config.allCaps) {
+    paragraphRange.font.allCaps = true;
+  }
+
+  await context.sync();
+
+  wrapInContentControl(paragraph, meta);
+
   await context.sync();
 }
 
@@ -804,31 +751,6 @@ async function insertLinkToLearning(base64) {
 
     wrapInContentControl(table, meta);
 
-    await context.sync();
-  });
-}
-
-async function insertFigureImage(base64) {
-  return Word.run(async (context) => {
-    const meta = buildMeta("figure-image");
-    const range = await getCursorRange(context);
-    const imagePara = range.insertParagraph("", Word.InsertLocation.after);
-    const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
-    img.width = 414;
-    img.alignment = Word.Alignment.centered;
-    const captionPara = imagePara.insertParagraph(" Caption text here.", Word.InsertLocation.after);
-    const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
-    caption.font.bold = true;
-    caption.font.color = "#C00000";
-    await context.sync();
-    const startRange = imagePara.getRange();
-    const endRange = captionPara.getRange();
-    await context.sync();
-    const figureRange = startRange.expandTo(endRange);
-    const cc = figureRange.insertContentControl();
-    cc.title = meta.label;
-    cc.tag = JSON.stringify(meta);
-    cc.appearance = Word.ContentControlAppearance.boundingBox;
     await context.sync();
   });
 }
