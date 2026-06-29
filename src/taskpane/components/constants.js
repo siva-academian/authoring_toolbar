@@ -66,12 +66,6 @@ export const COMPONENTS = [
     category: "text-media",
   },
   {
-    id: "bullet-list",
-    label: "Bullet List",
-    preview: "• Type your list item here",
-    category: "text-media",
-  },
-  {
     id: "logo-with-text",
     label: "Logo with Text",
     description: "Small logo + editable learning link text",
@@ -130,12 +124,6 @@ export const STYLES = {
     bold: true,
   },
   paragrapghText: {
-    font: "Arial",
-    size: 9,
-    color: "#000000",
-    bold: false,
-  },
-  bullestList: {
     font: "Arial",
     size: 9,
     color: "#000000",

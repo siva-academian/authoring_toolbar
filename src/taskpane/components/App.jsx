@@ -584,10 +584,6 @@ async function insertComponent(id) {
       return insertFigureCaption(range, context, meta);
     }
 
-    if (id === "bullet-list") {
-      return insertBulletItem(range, context, meta);
-    }
-
     const config = COMPONENT_CONFIG[id];
 
     if (config) {
@@ -648,16 +644,6 @@ async function insertFigureImage(base64) {
   });
 }
 
-async function insertBulletItem(range, context, meta) {
-  const p = range.insertParagraph("Type your list item here", Word.InsertLocation.after);
-  const r = p.getRange();
-  applyStyle(r, STYLES.bullestList);
-  p.startNewList();
-  p.listItem.level = 0;
-  await context.sync();
-  wrapInContentControl(p, meta);
-  await context.sync();
-}
 
 async function insertStyledComponent(range, context, meta, config) {
   const paragraph = range.insertParagraph(
