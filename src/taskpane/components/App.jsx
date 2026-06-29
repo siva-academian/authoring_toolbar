@@ -212,7 +212,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64);
+      await insertLinkToLearning(base64, linkImageFile.type);
       setStatus("âœ“ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
@@ -735,11 +735,39 @@ async function insertFigureCaption(range, context, meta) {
   await context.sync();
 }
 
-async function insertLinkToLearning(base64) {
+async function insertLinkToLearning(base64, mimeType = "image/png") {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text");
+    const platform = String(
+      Office?.context?.platform || Office?.context?.diagnostics?.platform || ""
+    ).toLowerCase();
+    const isWordWeb = platform.includes("online") || platform.includes("web");
 
     const range = context.document.body.getRange("End");
+
+    if (isWordWeb) {
+      const html = `
+        <table style="border-collapse:collapse;border:none;table-layout:fixed;width:100%;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+          <colgroup>
+            <col width="28" style="width:28pt;" />
+            <col style="width:auto;" />
+          </colgroup>
+          <tr>
+            <td width="28" style="border:none;width:28pt;padding:0;vertical-align:middle;text-align:center;">
+              <img src="data:${mimeType};base64,${base64}" width="24" height="24" style="width:24pt;height:24pt;vertical-align:middle;" />
+            </td>
+            <td style="border:none;padding:0;vertical-align:middle;">
+              <span style="font-family:Arial;font-size:12pt;font-weight:bold;color:#1F1F1F;"> START TYPING...</span>
+            </td>
+          </tr>
+        </table>
+      `;
+      const insertedRange = range.insertHtml(html, Word.InsertLocation.after);
+      await context.sync();
+      wrapInContentControl(insertedRange, meta);
+      await context.sync();
+      return;
+    }
 
     const table = range.insertTable(
       1,
