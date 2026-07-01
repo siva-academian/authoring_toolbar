@@ -265,7 +265,7 @@ export default function App() {
         method: "POST",
         // mode: "cors",
         body: formData,
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       }).catch((err) => {
         log(`Fetch error details: ${err.message}`);
         setApiLoadingStatus(false);
@@ -292,7 +292,7 @@ export default function App() {
         mode: "cors",
         headers: webHeaders,
         body: JSON.stringify({ documentId: documentId, tenantId }),
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       }).catch((err) => {
         setApiLoadingStatus(false);
         setApiType(null);
@@ -570,6 +570,7 @@ function buildMeta(id) {
     version: "1.0",
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
+    placeholder: comp?.placeholder ?? ""
   };
 }
 
@@ -648,7 +649,7 @@ async function insertFigureImage(base64) {
 }
 
 async function insertBulletItem(range, context, meta) {
-  const p = range.insertParagraph("Type here", Word.InsertLocation.after);
+  const p = range.insertParagraph("", Word.InsertLocation.after);
   const r = p.getRange();
   applyStyle(r, STYLES.bullestList);
   p.startNewList();
@@ -660,7 +661,7 @@ async function insertBulletItem(range, context, meta) {
 
 async function insertStyledComponent(range, context, meta, config) {
   const paragraph = range.insertParagraph(
-    meta.preview,
+    meta.placeholder,
     Word.InsertLocation.after
   );
 
