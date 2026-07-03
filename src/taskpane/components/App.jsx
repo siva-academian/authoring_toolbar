@@ -147,7 +147,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64);
+      await insertLinkToLearning(base64, linkImageFile.type);
       setStatus("âœ“ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
@@ -266,7 +266,7 @@ export default function App() {
         method: "POST",
         // mode: "cors",
         body: formData,
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       }).catch((err) => {
         log(`Fetch error details: ${err.message}`);
         setApiLoadingStatus(false);
@@ -293,7 +293,7 @@ export default function App() {
         mode: "cors",
         headers: webHeaders,
         body: JSON.stringify({ documentId: documentId, tenantId }),
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       }).catch((err) => {
         setApiLoadingStatus(false);
         setApiType(null);
@@ -572,6 +572,7 @@ function buildMeta(id) {
     version: "1.0",
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
+    placeholder: comp?.placeholder ?? ""
   };
 }
 
@@ -582,6 +583,10 @@ async function insertComponent(id) {
 
     if (id === "figure-caption") {
       return insertFigureCaption(range, context, meta);
+    }
+
+    if (id === "bullet-list") {
+      return insertBulletItem(range, context, meta);
     }
 
     const config = COMPONENT_CONFIG[id];
@@ -621,16 +626,17 @@ async function insertFigureCaption(range, context, meta) {
 async function insertFigureImage(base64) {
   return Word.run(async (context) => {
     const meta = buildMeta("figure-image");
-    const range = await getCursorRange(context);
+    const range = context.document.body.getRange("End");
     const imagePara = range.insertParagraph("", Word.InsertLocation.after);
-    imagePara.spaceAfter = 10;
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 414;
     img.alignment = Word.Alignment.centered;
     const captionPara = imagePara.insertParagraph(" Caption text here.", Word.InsertLocation.after);
     const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
     caption.font.bold = true;
-    caption.font.color = "#C31427";
+    caption.font.color = "#C00000";
+    captionPara.font.size = 10;
+    caption.font.size = 10;
     await context.sync();
     const startRange = imagePara.getRange();
     const endRange = captionPara.getRange();
@@ -644,10 +650,20 @@ async function insertFigureImage(base64) {
   });
 }
 
+async function insertBulletItem(range, context, meta) {
+  const p = range.insertParagraph("", Word.InsertLocation.after);
+  const r = p.getRange();
+  applyStyle(r, STYLES.bullestList);
+  p.startNewList();
+  p.listItem.level = 0;
+  await context.sync();
+  wrapInContentControl(p, meta);
+  await context.sync();
+}
 
 async function insertStyledComponent(range, context, meta, config) {
   const paragraph = range.insertParagraph(
-    meta.preview,
+    meta.placeholder,
     Word.InsertLocation.after
   );
 
@@ -658,7 +674,7 @@ async function insertStyledComponent(range, context, meta, config) {
   applyStyle(paragraphRange, config.style);
 
   if (config.allCaps) {
-    paragraphRange.font.allCaps = true;
+    // paragraphRange.font.allCaps = true;
   }
 
   await context.sync();
@@ -668,11 +684,39 @@ async function insertStyledComponent(range, context, meta, config) {
   await context.sync();
 }
 
-async function insertLinkToLearning(base64) {
+async function insertLinkToLearning(base64, mimeType = "image/png") {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text");
+    const platform = String(
+      Office?.context?.platform || Office?.context?.diagnostics?.platform || ""
+    ).toLowerCase();
+    const isWordWeb = platform.includes("online") || platform.includes("web");
 
     const range = context.document.body.getRange("End");
+
+    if (isWordWeb) {
+      const html = `
+        <table style="border-collapse:collapse;border:none;width:auto;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+          <colgroup>
+            <col width="28" style="width:28pt;max-width:28pt;" />
+            <col style="width:auto;" />
+          </colgroup>
+          <tr>
+            <td width="28" style="border:none;width:28pt;max-width:28pt;padding:0;vertical-align:middle;text-align:center;white-space:nowrap;">
+              <img src="data:${mimeType};base64,${base64}" width="24" height="24" style="width:24pt;height:24pt;vertical-align:middle;" />
+            </td>
+            <td style="border:none;padding:0;vertical-align:middle;">
+              <span style="font-family:Arial;font-size:12pt;font-weight:bold;color:#1F1F1F;"> START TYPING...</span>
+            </td>
+          </tr>
+        </table>
+      `;
+      const insertedRange = range.insertHtml(html, Word.InsertLocation.after);
+      await context.sync();
+      wrapInContentControl(insertedRange, meta);
+      await context.sync();
+      return;
+    }
 
     const table = range.insertTable(
       1,
