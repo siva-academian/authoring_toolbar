@@ -32,39 +32,30 @@ button:disabled {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #dce8ee;
+  background: #fff;
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────── */
 .addin-header {
-  background: #0d0d0d;
-  padding: 16px 18px 0 18px;
+  background: #002863;
+  padding: 16px 0 0 0;
+  position: sticky;
+  top: 0;
 }
 
-.brand {
+.brand-logo {
+  text-align: right;
   display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+  justify-content: flex-end;
 }
 
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-
-.brand-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #00e5cc;
-  letter-spacing: -0.3px;
-}
-
-.brand-subtitle {
-  font-size: 16px;
-  font-weight: 600;
-  color: #00e5cc;
-  letter-spacing: -0.2px;
+.brand-logo-img {
+  width: auto;
+  height: 30px;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 8px;
+  margin-right: 16px;
 }
 
 /* ─── Tab bar ────────────────────────────────────────────────────────────── */
@@ -78,10 +69,9 @@ button:disabled {
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #999;
+  color: #DFF4FF80;
   background: transparent;
   border: none;
-  border-radius: 8px 8px 0 0;
   transition: background 0.15s, color 0.15s;
   letter-spacing: 0.1px;
 }
@@ -92,7 +82,7 @@ button:disabled {
 
 .tab-btn--active {
   color: #1a1a1a;
-  background: #dce8ee;
+  background: #fff;
   font-weight: 700;
 }
 
@@ -100,10 +90,31 @@ button:disabled {
   color: #1a1a1a;
 }
 
+.intruction-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  /* color: #04228C; */
+  font-weight: 600;
+}
+
+.instruction-icon {
+  width: 15px;
+}
+
+.instruction-text--success {
+  color: #155724;
+}
+
+.instruction-text--error {
+  color: #721c24;
+}
+
 /* ─── Main ───────────────────────────────────────────────────────────────── */
 .addin-main {
   flex: 1;
-  padding: 20px 16px 12px 16px;
+  padding: 20px 16px 80px 16px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -133,23 +144,28 @@ button:disabled {
 
 .section-divider {
   height: 1px;
-  background: #7596A9;
+  background: #7596A9B2;
   margin: 5px 0;
 }
 
 /* ─── Component card ─────────────────────────────────────────────────────── */
 .component-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 12px 12px 12px 12px;
+  background: #F8F8F8;
+  border-radius: 12px;
+  padding: 8px 12px 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   text-align: left;
-  border: 1.5px solid transparent;
+  border: 1px solid #DCD9D9;
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-  min-height: 80px;
+}
+
+.component-card-divider {
+  height: 0px;
+  border-top: 1px solid #DCD9D9;
+  background: #D5D4D4;
+  margin: 2px 0;
 }
 
 .component-card:hover:not(:disabled) {
@@ -180,29 +196,7 @@ button:disabled {
   line-height: 1.2;
 }
 
-.component-card-dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.component-card-dots:hover {
-  background: #f0f0f0;
-}
-
 /* ─── Card preview box ───────────────────────────────────────────────────── */
-.component-card-preview-box {
-  background: #EEEEEE;
-  border-radius: 6px;
-  padding: 6px 8px;
-  border: 1px solid #D6D6D6;
-}
 
 .component-card-preview {
   font-size: 11px;
@@ -248,15 +242,8 @@ button:disabled {
   line-height: 1.2;
 }
 
-.link-learning-subtitle {
-  color: #666;
-  font-size: 11px;
-  line-height: 1.3;
-  margin-top: 2px;
-}
-
 .link-learning-upload {
-  color: #1a75f0;
+  color: #297eff;
   font-size: 12px;
   font-weight: 700;
   padding: 4px 0;
@@ -265,13 +252,13 @@ button:disabled {
 
 .link-learning-preview-row {
   align-items: center;
-  background: #eeeeee;
-  border: 1px solid #d6d6d6;
+  background: #f8f8f8;
+  border: 1px solid #dcd9d9;
   border-radius: 6px;
   display: flex;
   gap: 8px;
   min-height: 40px;
-  padding: 7px 8px;
+  padding: 2px;
 }
 
 .link-learning-logo-box {
@@ -296,20 +283,18 @@ button:disabled {
 
 .link-learning-text-preview {
   color: #222;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 10px;
   line-height: 1.25;
   min-width: 0;
-  text-transform: uppercase;
 }
 
 .link-learning-actions {
   display: flex;
   gap: 8px;
+  justify-content: center;
 }
 
 .link-learning-actions .insert-btn {
-  flex: 1;
   padding: 8px 18px;
 }
 
@@ -436,15 +421,18 @@ button:disabled {
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 .addin-footer {
+  width: 100%;
+  position: fixed;
+  bottom: 0;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   justify-content: center;
-  padding: 12px 16px 20px 16px;
+  padding: 13px 13px 13px 13px;
   background: #dce8ee;
 }
 
 .footer-btn {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   border-radius: 50px;
   padding: 11px 28px;
@@ -453,12 +441,12 @@ button:disabled {
 }
 
 .footer-btn--pdf {
-  background: #1a75f0;
+  background: #297EFF;
   color: #fff;
 }
 
 .footer-btn--web {
-  background: #1a75f0;
+  background: #297EFF;
   color: #fff;
 }
 
@@ -469,45 +457,6 @@ button:disabled {
 
 .footer-btn:active:not(:disabled) {
   transform: scale(0.97);
-}
-
-/* ─── Status bar ─────────────────────────────────────────────────────────── */
-.status-bar {
-  position: fixed;
-  bottom: 20px;
-  left: 12px;
-  right: 12px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-  z-index: 100;
-  animation: fadeIn 0.2s ease;
-}
-
-.status-bar--success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.status-bar--error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ─── Debug panel ────────────────────────────────────────────────────────── */
