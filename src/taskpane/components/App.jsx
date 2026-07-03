@@ -6,20 +6,9 @@ const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
 const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com";
 const REACT_APP_WEB_BASE_URL = "https://prjx.academian.com";
 
-// Pen icon SVG for the logo
-const PenIcon = () => (
-  <svg width="30" height="50" viewBox="0 0 83 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path fillRule="evenodd" clipRule="evenodd" d="M33.4173 21.0732L23.4127 39.9851L31.7005 42.6607L32.3017 42.855L42.389 46.1115L40.2309 52.9831L30.1436 49.7266L29.5424 49.5322L15.621 44.8198C19.2297 38.1942 33.4173 21.0732 33.4173 21.0732ZM23.432 69.4888C26.8786 70.6011 28.7715 74.2978 27.6581 77.7443C26.6735 80.7947 23.665 82.6274 20.5965 82.2366L17.5891 91.553L14.3455 101.6L9.60731 116.278C18.8345 103.706 29.9332 92.5096 42.8367 82.6425C38.8952 73.2402 37.7582 63.8852 39.5996 54.5807L29.5746 51.3446L29.0603 51.1782L19.0353 47.9421C15.0874 56.567 8.69576 63.4912 0 68.8134C4.69843 84.3647 7.15502 99.9352 7.28923 115.53L12.0274 100.853L15.271 90.8057L18.2784 81.4893C15.5609 80.0119 14.1919 76.7662 15.1765 73.7159C16.2888 70.2693 19.9855 68.3764 23.432 69.4899V69.4888Z" fill="#09D3FF" />
-    <path fillRule="evenodd" clipRule="evenodd" d="M83 -40C65.9145 -20.911 43.8256 31.5652 44.2916 54.5721L35.1879 51.3543C39.9475 5.8441 83 -40 83 -40Z" fill="#09D3FF" />
-  </svg>
-);
-
-// Three-dot menu icon
-const DotsIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="8" cy="3" r="1.2" fill="#888" />
-    <circle cx="8" cy="8" r="1.2" fill="#888" />
-    <circle cx="8" cy="13" r="1.2" fill="#888" />
+const InstrcutionIcon = () => (
+  <svg className="instruction-icon" width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15 0C6.71543 0 0 6.71602 0 15C0 23.284 6.71543 30 15 30C23.2846 30 30 23.2846 30 15C30 6.71543 23.2846 0 15 0ZM15 7.5C16.0354 7.5 16.875 8.33965 16.875 9.375C16.875 10.4104 16.0354 11.25 15 11.25C13.9646 11.25 13.125 10.4109 13.125 9.375C13.125 8.33906 13.9646 7.5 15 7.5ZM17.8125 22.5H12.1875C11.6695 22.5 11.25 22.0805 11.25 21.5625C11.25 21.0445 11.6695 20.625 12.1875 20.625H13.125V15H12.1875C11.6695 15 11.25 14.5805 11.25 14.0625C11.25 13.5445 11.6695 13.125 12.1875 13.125H15.9375C16.4555 13.125 16.875 13.5445 16.875 14.0625V20.625H17.8125C18.3305 20.625 18.75 21.0445 18.75 21.5625C18.75 22.0805 18.3305 22.5 17.8125 22.5Z" fill="#0E236C" />
   </svg>
 );
 
@@ -39,10 +28,8 @@ const renderComponentCard = ({ comp, loading, handleCardClick }) => {
         <span className="component-card-label">
           {isActive ? "Inserting…" : comp.label}
         </span>
-        <span className="component-card-dots" onClick={(e) => e.stopPropagation()}>
-          <DotsIcon />
-        </span>
       </div>
+      <div className="component-card-divider"></div>
       {comp.preview && (
         <div className="component-card-preview-box">
           {comp.previewPrefix ? (
@@ -334,12 +321,8 @@ export default function App() {
     <div className="addin-root">
       {/* ── Header ── */}
       <header className="addin-header">
-        <div className="brand">
-          <PenIcon />
-          <div className="brand-text">
-            <span className="brand-title">Authoring</span>
-            <span className="brand-subtitle">Toolbar</span>
-          </div>
+        <div className="brand-logo">
+          <img src="../assets/Author_Logo.png" alt="Brand Logo" className="brand-logo-img" />
         </div>
 
         {/* ── Tabs ── */}
@@ -354,13 +337,17 @@ export default function App() {
             className={`tab-btn${activeTab === "image" ? " tab-btn--active" : ""}`}
             onClick={() => setActiveTab("image")}
           >
-            Image
+            Image-Icon
           </button>
         </div>
       </header>
 
       {/* ── Main ── */}
       <main className="addin-main">
+        {status && <p className={`intruction-text ${status.startsWith("✓") ? " instruction-text--success" : " instruction-text--error"}`}>
+          <InstrcutionIcon />
+          {status}
+        </p>}
         {activeTab === "content" ? (
           <>
             {/* Header section */}
@@ -370,59 +357,6 @@ export default function App() {
                 {headerComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick })
                 )}
-              </div>
-              <div className="link-learning-panel">
-                <div className="link-learning-top">
-                  <div>
-                    <div className="link-learning-title">Logo with Title</div>
-                    <div className="link-learning-subtitle">Small logo with editable text</div>
-                  </div>
-                  <button
-                    className="link-learning-upload"
-                    onClick={() => linkFileInputRef.current?.click()}
-                    disabled={loading === "logo-with-text"}
-                  >
-                    {linkImagePreview ? "Change" : "Upload"}
-                  </button>
-                </div>
-                <div className="link-learning-preview-row">
-                  <div className="link-learning-logo-box">
-                    {linkImagePreview ? (
-                      <img src={linkImagePreview} alt="Logo with Text preview" />
-                    ) : (
-                      <span>Logo</span>
-                    )}
-                  </div>
-                  <div className="link-learning-text-preview">START TYPING...</div>
-                </div>
-                <div className="link-learning-actions">
-                  <button
-                    className="insert-btn"
-                    onClick={handleLinkToLearningInsert}
-                    disabled={!linkImageFile || loading === "logo-with-text"}
-                  >
-                    {loading === "logo-with-text" ? "Insertingâ€¦" : "Insert"}
-                  </button>
-                  {linkImagePreview && (
-                    <button
-                      className="cancel-btn"
-                      onClick={() => {
-                        setLinkImageFile(null);
-                        setLinkImagePreview(null);
-                        if (linkFileInputRef.current) linkFileInputRef.current.value = "";
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                <input
-                  ref={linkFileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  style={{ display: "none" }}
-                  onChange={handleLinkImageChange}
-                />
               </div>
             </section>
             <div className="section-divider" />
@@ -435,7 +369,6 @@ export default function App() {
                 )}
               </div>
             </section>
-            <div className="section-divider" />
           </>
         ) : (
           /* Image tab */
@@ -497,6 +430,60 @@ export default function App() {
               style={{ display: "none" }}
               onChange={handleFileChange}
             />
+
+
+            <div className="link-learning-panel">
+              <div className="link-learning-top">
+                <div>
+                  <div className="link-learning-title">Icon with Title</div>
+                </div>
+                <button
+                  className="link-learning-upload"
+                  onClick={() => linkFileInputRef.current?.click()}
+                  disabled={loading === "logo-with-text"}
+                >
+                  {linkImagePreview ? "Change" : "Upload Icon"}
+                </button>
+              </div>
+              <div className="link-learning-preview-row">
+                <div className="link-learning-logo-box">
+                  {linkImagePreview ? (
+                    <img src={linkImagePreview} alt="Logo with Text preview" />
+                  ) : (
+                    <span>Logo</span>
+                  )}
+                </div>
+                <div className="link-learning-text-preview">Text with Icon</div>
+              </div>
+              <div className="link-learning-actions">
+                <button
+                  className="insert-btn"
+                  onClick={handleLinkToLearningInsert}
+                  disabled={!linkImageFile || loading === "logo-with-text"}
+                >
+                  {loading === "logo-with-text" ? "Insertingâ€¦" : "Insert"}
+                </button>
+                {linkImagePreview && (
+                  <button
+                    className="cancel-btn"
+                    onClick={() => {
+                      setLinkImageFile(null);
+                      setLinkImagePreview(null);
+                      if (linkFileInputRef.current) linkFileInputRef.current.value = "";
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input
+                ref={linkFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                style={{ display: "none" }}
+                onChange={handleLinkImageChange}
+              />
+            </div>
           </section>
         )}
       </main>
@@ -514,13 +501,6 @@ export default function App() {
           {apiLoadingStatus && apiType == "WEB" ? "Generating…" : "Preview Lesson"}
         </button>
       </footer>
-
-      {/* ── Status bar ── */}
-      {status && (
-        <div className={`status-bar${status.startsWith("✓") ? " status-bar--success" : " status-bar--error"}`}>
-          {status}
-        </div>
-      )}
 
       {/* ── Debug ── */}
       {debugInfo && (
