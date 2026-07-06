@@ -582,6 +582,11 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES) {
 
     const config = COMPONENT_CONFIG[id];
 
+    if (config?.layout === "two-column") {
+      await insertTwoColumnComponent(range, context, meta, config);
+      return;
+    }
+
     if (config?.dual) {
       await insertDualTextComponent(range, context, meta, config.dual);
       return;
@@ -794,4 +799,48 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) 
 
     await context.sync();
   });
+}
+
+async function insertTwoColumnComponent(range, context, meta, config) {
+  const table = range.insertTable(
+    1,
+    2,
+    Word.InsertLocation.after,
+    [["", ""]]
+  );
+
+  table.setCellPadding(Word.CellPaddingLocation.top, 0);
+  table.setCellPadding(Word.CellPaddingLocation.bottom, 0);
+  table.setCellPadding(Word.CellPaddingLocation.left, 5);
+  table.setCellPadding(Word.CellPaddingLocation.right, 5);
+
+  // remove borders
+  [
+    Word.BorderLocation.top,
+    Word.BorderLocation.bottom,
+    Word.BorderLocation.left,
+    Word.BorderLocation.right,
+    Word.BorderLocation.insideHorizontal,
+    Word.BorderLocation.insideVertical,
+  ].forEach((loc) => {
+    const border = table.getBorder(loc);
+    border.type = Word.BorderType.none;
+  });
+
+  const leftCell = table.getCell(0, 0);
+  const rightCell = table.getCell(0, 1);
+
+  table.autofit = Word.AutoFitBehavior.contents;
+
+  const leftPara = leftCell.body.insertParagraph("", Word.InsertLocation.start);
+  const rightPara = rightCell.body.insertParagraph("", Word.InsertLocation.start);
+
+  applyStyle(leftPara.getRange(), config.leftStyle);
+  applyStyle(rightPara.getRange(), config.rightStyle);
+
+  await context.sync();
+
+  wrapInContentControl(table, meta);
+
+  await context.sync();
 }

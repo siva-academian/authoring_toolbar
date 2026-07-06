@@ -391,7 +391,9 @@ export const MARKETING_COMPONENT_CONFIG = {
   },
 
   "paragraph-text": {
-    style: MARKETING_STYLES.paragraphText,
+    leftStyle: MARKETING_STYLES.paragraphText,
+    rightStyle: MARKETING_STYLES.paragraphText,
+    layout: "two-column"
   },
 
   "sub-titles-list": {
