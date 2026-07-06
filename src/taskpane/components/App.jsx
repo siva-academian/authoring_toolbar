@@ -576,8 +576,6 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES) {
     const range = context.document.body.getRange("End");
     const meta = buildMeta(id, COMPONENTS);
 
-
-
     if (id === "bullet-list") {
       return insertBulletItem(range, context, meta, STYLES);
     }
@@ -604,6 +602,8 @@ function applyStyle(range, style) {
   range.font.bold = style.bold || false;
   if (style.backgroundColor) {
     range.font.highlightColor = style.backgroundColor;
+  } else {
+    range.font.highlightColor = "#FFFFFF";
   }
 }
 
