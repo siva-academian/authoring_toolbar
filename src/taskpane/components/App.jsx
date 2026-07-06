@@ -576,15 +576,18 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES) {
     const range = context.document.body.getRange("End");
     const meta = buildMeta(id, COMPONENTS);
 
-    if (id === "figure-caption") {
-      return insertFigureCaption(range, context, meta, STYLES);
-    }
+
 
     if (id === "bullet-list") {
       return insertBulletItem(range, context, meta, STYLES);
     }
 
     const config = COMPONENT_CONFIG[id];
+
+    if (config?.dual) {
+      await insertDualTextComponent(range, context, meta, config.dual);
+      return;
+    }
 
     if (config) {
       await insertStyledComponent(range, context, meta, config);
@@ -604,20 +607,25 @@ function applyStyle(range, style) {
   }
 }
 
-async function insertFigureCaption(range, context, meta, STYLES) {
-  const label = range.insertParagraph(
-    " Caption text here.",
+async function insertDualTextComponent(range, context, meta, config) {
+  const paragraph = range.insertParagraph(
+    config.text,
     Word.InsertLocation.after
   );
-  const figureRange = label.insertText(
-    "FIGURE 1.1",
+
+  const prefixRange = paragraph.insertText(
+    config.prefix,
     Word.InsertLocation.start
   );
-  const labelRange = label.getRange();
-  applyStyle(labelRange, STYLES.imageFigureText);
-  applyStyle(figureRange, STYLES.imageFigureNumber);
+
+  const fullRange = paragraph.getRange();
+  applyStyle(fullRange, config.textStyle);
+  applyStyle(prefixRange, config.prefixStyle);
+
   await context.sync();
-  wrapInContentControl(label, meta);
+
+  wrapInContentControl(paragraph, meta);
+
   await context.sync();
 }
 
@@ -658,29 +666,6 @@ async function insertBulletItem(range, context, meta, STYLES) {
   wrapInContentControl(p, meta);
   await context.sync();
 }
-
-// async function insertStyledComponent(range, context, meta, config) {
-//   const paragraph = range.insertParagraph(
-//     meta.placeholder,
-//     Word.InsertLocation.after
-//   );
-// 
-//   paragraph.spaceAfter = 10;
-// 
-//   const paragraphRange = paragraph.getRange();
-// 
-//   applyStyle(paragraphRange, config.style);
-// 
-//   if (config.allCaps) {
-//     // paragraphRange.font.allCaps = true;
-//   }
-// 
-//   await context.sync();
-// 
-//   wrapInContentControl(paragraph, meta);
-// 
-//   await context.sync();
-// }
 
 async function insertStyledComponent(
   range,

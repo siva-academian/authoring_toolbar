@@ -200,6 +200,14 @@ export const BIOLOGY_COMPONENT_CONFIG = {
   "sub-section-title": {
     style: BIOLOGY_STYLES.subSectionTitle,
   },
+  "figure-caption": {
+    dual: {
+      prefix: "FIGURE 1.1",
+      text: " Caption text here.",
+      prefixStyle: BIOLOGY_STYLES.imageFigureNumber,
+      textStyle: BIOLOGY_STYLES.imageFigureText,
+    }
+  }
 };
 
 export const MARKETING_COMPONENTS = [
@@ -387,7 +395,12 @@ export const MARKETING_COMPONENT_CONFIG = {
   },
 
   "sub-titles-list": {
-    style: MARKETING_STYLES.subTitlesList,
+    dual: {
+      prefix: "1.1",
+      text: " Define the term marketing",
+      prefixStyle: MARKETING_STYLES.subTitlesList.number,
+      textStyle: MARKETING_STYLES.subTitlesList.text,
+    }
   },
 
   "section-title": {
