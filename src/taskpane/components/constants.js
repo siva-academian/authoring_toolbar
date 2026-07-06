@@ -1,4 +1,4 @@
-export const COMPONENTS = [
+export const BIOLOGY_COMPONENTS = [
   {
     id: "chapter-number",
     label: "Chapter Number",
@@ -93,7 +93,7 @@ export const COMPONENTS = [
   },
 ];
 
-export const STYLES = {
+export const BIOLOGY_STYLES = {
   chapterHeading: {
     font: "Arial",
     size: 15,
@@ -168,36 +168,260 @@ export const STYLES = {
   }
 };
 
-export const COMPONENT_CONFIG = {
+export const BIOLOGY_COMPONENT_CONFIG = {
   "chapter-number": {
-    style: STYLES.chapterHeading,
+    style: BIOLOGY_STYLES.chapterHeading,
     allCaps: true,
   },
   "chapter-title": {
-    style: STYLES.chapterTitle,
+    style: BIOLOGY_STYLES.chapterTitle,
   },
   "chapter-overview": {
-    style: STYLES.chapterOverview,
+    style: BIOLOGY_STYLES.chapterOverview,
     allCaps: true,
   },
   "lesson-overview": {
-    style: STYLES.lessonOverview,
+    style: BIOLOGY_STYLES.lessonOverview,
   },
   "lesson-title": {
-    style: STYLES.lessonTitle,
+    style: BIOLOGY_STYLES.lessonTitle,
     allCaps: true,
   },
   "learning-objectives": {
-    style: STYLES.learningObjectives,
+    style: BIOLOGY_STYLES.learningObjectives,
     allCaps: true,
   },
   "paragraph-text": {
-    style: STYLES.paragrapghText,
+    style: BIOLOGY_STYLES.paragrapghText,
   },
   "section-title": {
-    style: STYLES.sectionTitle,
+    style: BIOLOGY_STYLES.sectionTitle,
   },
   "sub-section-title": {
-    style: STYLES.subSectionTitle,
+    style: BIOLOGY_STYLES.subSectionTitle,
   },
 };
+
+export const MARKETING_COMPONENTS = [
+  {
+    id: "part-number",
+    label: "Part Number",
+    preview: "Part 1",
+    category: "header",
+    placeholder: "Part 1",
+  },
+  {
+    id: "chapter-number",
+    label: "Chapter Number",
+    preview: "Chapter 1",
+    category: "header",
+    placeholder: "Chapter 1",
+  },
+  {
+    id: "lesson-title",
+    label: "Lesson Title",
+    preview: "An overview of Marketing",
+    category: "header",
+    placeholder: "An overview of Marketing",
+  },
+  {
+    id: "learning-objectives",
+    label: "Learning Objectives",
+    preview: "Learning Objectives",
+    category: "header",
+    placeholder: "Learning Objectives",
+  },
+  {
+    id: "paragraph-text",
+    label: "Paragraph",
+    preview: "Start typing your text here...",
+    category: "text-media",
+    placeholder: "",
+  },
+  {
+    id: "sub-titles-list",
+    label: "Sub Titles List",
+    preview: "1.1 Define the term marketing",
+    category: "header",
+    placeholder: "",
+  },
+  {
+    id: "section-title",
+    label: "Section Title",
+    preview: "1-1 What is Marketing",
+    category: "header",
+    placeholder: "1-1 What is Marketing",
+  },
+  {
+    id: "sub-section-title",
+    label: "Sub Section Title",
+    preview: "1-1 Define the term marketing",
+    category: "header",
+    placeholder: "1-1 Define the term marketing",
+  },
+  {
+    id: "green-sub-section-title",
+    label: "Green Sub Section Title",
+    preview: "1-2a Production Orientation",
+    category: "header",
+    placeholder: "1-2a Production Orientation",
+  },
+  {
+    id: "sub-title",
+    label: "Sub Title",
+    preview: "Customer Value",
+    category: "header",
+    placeholder: "Customer Value",
+  },
+];
+
+export const MARKETING_STYLES = {
+  partNumber: {
+    font: "Arial",
+    size: 24,
+    color: "#FFFFFF",
+    bold: false,
+    backgroundColor: "#CA5027",
+  },
+
+  chapterHeading: {
+    font: "Arial",
+    size: 36,
+    color: "#FFFFFF",
+    bold: false,
+    backgroundColor: "#CA5027",
+  },
+
+  lessonTitle: {
+    font: "Arial",
+    size: 44,
+    color: "#214880",
+    bold: false,
+  },
+
+  learningObjectives: {
+    font: "Arial",
+    size: 15,
+    color: "#CA5027",
+    bold: true,
+  },
+
+  paragraphText: {
+    font: "Arial",
+    size: 10,
+    color: "#000000",
+    bold: false,
+  },
+
+  subTitlesList: {
+    text: {
+      font: "Arial",
+      size: 11,
+      color: "#000000",
+      bold: false,
+    },
+    number: {
+      font: "Arial",
+      size: 11,
+      color: "#CA5027",
+      bold: true,
+    },
+  },
+
+  sectionTitle: {
+    text: {
+      font: "Arial",
+      size: 17,
+      color: "#214880",
+      bold: true,
+    },
+    number: {
+      font: "Arial",
+      size: 18,
+      color: "#214880",
+      bold: true,
+    },
+  },
+
+  subSectionTitle: {
+    font: "Arial",
+    size: 10,
+    color: "#000000",
+    bold: true,
+  },
+
+  greenSubSectionTitle: {
+    font: "Arial",
+    size: 15,
+    color: "#00854A",
+    bold: true,
+  },
+
+  subTitle: {
+    font: "Arial",
+    size: 12,
+    color: "#CA5027",
+    bold: false,
+  },
+};
+
+export const MARKETING_COMPONENT_CONFIG = {
+  "part-number": {
+    style: MARKETING_STYLES.partNumber,
+  },
+
+  "chapter-number": {
+    style: MARKETING_STYLES.chapterHeading,
+  },
+
+  "lesson-title": {
+    style: MARKETING_STYLES.lessonTitle,
+  },
+
+  "learning-objectives": {
+    style: MARKETING_STYLES.learningObjectives,
+  },
+
+  "paragraph-text": {
+    style: MARKETING_STYLES.paragraphText,
+  },
+
+  "sub-titles-list": {
+    style: MARKETING_STYLES.subTitlesList,
+  },
+
+  "section-title": {
+    style: MARKETING_STYLES.sectionTitle,
+  },
+
+  "sub-section-title": {
+    style: MARKETING_STYLES.subSectionTitle,
+  },
+
+  "green-sub-section-title": {
+    style: MARKETING_STYLES.greenSubSectionTitle,
+  },
+
+  "sub-title": {
+    style: MARKETING_STYLES.subTitle,
+  },
+};
+
+export const BOOKS = {
+  biology: {
+    id: "biology",
+    name: "BIOLOGY",
+    COMPONENTS: BIOLOGY_COMPONENTS,
+    STYLES: BIOLOGY_STYLES,
+    COMPONENT_CONFIG: BIOLOGY_COMPONENT_CONFIG,
+  },
+  marketing: {
+    id: "marketing",
+    name: "MARKETING",
+    COMPONENTS: MARKETING_COMPONENTS,
+    STYLES: MARKETING_STYLES,
+    COMPONENT_CONFIG: MARKETING_COMPONENT_CONFIG,
+  },
+};
+
+export const DEFAULT_BOOK = "biology";

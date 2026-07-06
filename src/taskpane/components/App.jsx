@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import "./App.css";
-import { STYLES, COMPONENTS, COMPONENT_CONFIG } from "./constants";
+import { BOOKS, DEFAULT_BOOK } from "./constants";
 
 const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
 const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com";
@@ -61,6 +61,13 @@ export default function App() {
   const [apiType, setApiType] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
+  const [currentBook, setCurrentBook] = useState(DEFAULT_BOOK);
+
+  const {
+    COMPONENTS,
+    STYLES,
+    COMPONENT_CONFIG,
+  } = BOOKS[currentBook ?? DEFAULT_BOOK];
 
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
@@ -92,7 +99,7 @@ export default function App() {
     setLoading(id);
     setStatus("");
     try {
-      await insertComponent(id);
+      await insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES);
       setStatus(`✓ "${COMPONENTS.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
       setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
@@ -133,7 +140,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64, linkImageFile.type);
+      await insertLinkToLearning(base64, linkImageFile.type, COMPONENTS);
       setStatus("âœ“ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
@@ -177,7 +184,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64);
+      await insertFigureImage(base64, COMPONENTS);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -342,6 +349,16 @@ export default function App() {
         </div>
       </header>
 
+      <select
+        value={currentBook}
+        onChange={(e) => setCurrentBook(e.target.value)}
+      >
+        {Object.values(BOOKS).map((book) => (
+          <option key={book.id} value={book.id}>
+            {book.name}
+          </option>
+        ))}
+      </select>
       {/* ── Main ── */}
       <main className="addin-main">
         {status && <p className={`intruction-text ${status.startsWith("✓") ? " instruction-text--success" : " instruction-text--error"}`}>
@@ -541,7 +558,7 @@ function wrapInContentControl(paragraph, meta) {
   return cc;
 }
 
-function buildMeta(id) {
+function buildMeta(id, COMPONENTS) {
   const comp = COMPONENTS.find((c) => c.id === id);
   return {
     type: id,
@@ -554,17 +571,17 @@ function buildMeta(id) {
   };
 }
 
-async function insertComponent(id) {
+async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES) {
   return Word.run(async (context) => {
     const range = context.document.body.getRange("End");
-    const meta = buildMeta(id);
+    const meta = buildMeta(id, COMPONENTS);
 
     if (id === "figure-caption") {
-      return insertFigureCaption(range, context, meta);
+      return insertFigureCaption(range, context, meta, STYLES);
     }
 
     if (id === "bullet-list") {
-      return insertBulletItem(range, context, meta);
+      return insertBulletItem(range, context, meta, STYLES);
     }
 
     const config = COMPONENT_CONFIG[id];
@@ -582,9 +599,12 @@ function applyStyle(range, style) {
   range.font.size = style.size;
   range.font.color = style.color;
   range.font.bold = style.bold || false;
+  if (style.backgroundColor) {
+    range.font.highlightColor = style.backgroundColor;
+  }
 }
 
-async function insertFigureCaption(range, context, meta) {
+async function insertFigureCaption(range, context, meta, STYLES) {
   const label = range.insertParagraph(
     " Caption text here.",
     Word.InsertLocation.after
@@ -601,9 +621,9 @@ async function insertFigureCaption(range, context, meta) {
   await context.sync();
 }
 
-async function insertFigureImage(base64) {
+async function insertFigureImage(base64, COMPONENTS) {
   return Word.run(async (context) => {
-    const meta = buildMeta("figure-image");
+    const meta = buildMeta("figure-image", COMPONENTS);
     const range = context.document.body.getRange("End");
     const imagePara = range.insertParagraph("", Word.InsertLocation.after);
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
@@ -628,7 +648,7 @@ async function insertFigureImage(base64) {
   });
 }
 
-async function insertBulletItem(range, context, meta) {
+async function insertBulletItem(range, context, meta, STYLES) {
   const p = range.insertParagraph("", Word.InsertLocation.after);
   const r = p.getRange();
   applyStyle(r, STYLES.bullestList);
@@ -639,7 +659,35 @@ async function insertBulletItem(range, context, meta) {
   await context.sync();
 }
 
-async function insertStyledComponent(range, context, meta, config) {
+// async function insertStyledComponent(range, context, meta, config) {
+//   const paragraph = range.insertParagraph(
+//     meta.placeholder,
+//     Word.InsertLocation.after
+//   );
+// 
+//   paragraph.spaceAfter = 10;
+// 
+//   const paragraphRange = paragraph.getRange();
+// 
+//   applyStyle(paragraphRange, config.style);
+// 
+//   if (config.allCaps) {
+//     // paragraphRange.font.allCaps = true;
+//   }
+// 
+//   await context.sync();
+// 
+//   wrapInContentControl(paragraph, meta);
+// 
+//   await context.sync();
+// }
+
+async function insertStyledComponent(
+  range,
+  context,
+  meta,
+  config
+) {
   const paragraph = range.insertParagraph(
     meta.placeholder,
     Word.InsertLocation.after
@@ -662,9 +710,9 @@ async function insertStyledComponent(range, context, meta, config) {
   await context.sync();
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png") {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) {
   return Word.run(async (context) => {
-    const meta = buildMeta("logo-with-text");
+    const meta = buildMeta("logo-with-text", COMPONENTS);
     const platform = String(
       Office?.context?.platform || Office?.context?.diagnostics?.platform || ""
     ).toLowerCase();
