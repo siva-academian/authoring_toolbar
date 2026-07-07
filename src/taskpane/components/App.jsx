@@ -3,8 +3,14 @@ import "./App.css";
 import { BOOKS, DEFAULT_BOOK } from "./constants";
 
 const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
-const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com";
+const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com/qa";
 const REACT_APP_WEB_BASE_URL = "https://prjx.academian.com";
+
+// ─── Layout mode options shown in the context panel ───────────────────────────
+const LAYOUT_MODES = [
+  { value: "full", label: "Full width" },
+  { value: "two-col", label: "Two columns" },
+];
 
 const InstrcutionIcon = () => (
   <svg className="instruction-icon" width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -49,7 +55,7 @@ const renderComponentCard = ({ comp, loading, handleCardClick }) => {
 export default function App() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(null);
-  const [activeTab, setActiveTab] = useState("content"); // "content" | "image"
+  const [activeTab, setActiveTab] = useState("content");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -62,6 +68,14 @@ export default function App() {
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
   const [currentBook, setCurrentBook] = useState(DEFAULT_BOOK);
+
+  // ── Layout context state ────────────────────────────────────────────────────
+  // Authors set this BEFORE clicking a component card. Every component inserted
+  // while these values are active will carry them in its content-control tag.
+  const [layoutMode, setLayoutMode] = useState("full");   // "full" | "two-col"
+  const [layoutColumn, setLayoutColumn] = useState(1);        // 1 | 2  (ignored when mode=full)
+  const [pageNumber, setPageNumber] = useState(1);        // logical PDF page
+  // ───────────────────────────────────────────────────────────────────────────
 
   const {
     COMPONENTS,
@@ -85,6 +99,16 @@ export default function App() {
         }\n` + prev
     );
 
+  // Build the layout object that will be embedded into every content-control tag
+  const buildLayoutContext = () => {
+    const ctx = {
+      page: pageNumber,
+      mode: layoutMode,           // "full" | "two-col"
+      column: layoutMode === "two-col" ? layoutColumn : null, // null when full-width
+    };
+    return ctx;
+  };
+
   const handleCardClick = async (id) => {
     if (id === "figure-image") {
       setActiveTab("image");
@@ -99,7 +123,8 @@ export default function App() {
     setLoading(id);
     setStatus("");
     try {
-      await insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES);
+      // Pass the current layout context so it gets embedded in the tag
+      await insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, buildLayoutContext());
       setStatus(`✓ "${COMPONENTS.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
       setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
@@ -122,7 +147,7 @@ export default function App() {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setStatus("âœ— Please select an image file.");
+      setStatus("✗ Please select an image file.");
       return;
     }
     setLinkImageFile(file);
@@ -133,20 +158,20 @@ export default function App() {
 
   const handleLinkToLearningInsert = async () => {
     if (!linkImageFile) {
-      setStatus("âœ— Please upload a Logo with Text image first.");
+      setStatus("✗ Please upload a Logo with Text image first.");
       return;
     }
     setLoading("logo-with-text");
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64, linkImageFile.type, COMPONENTS);
-      setStatus("âœ“ Logo with Text inserted.");
+      await insertLinkToLearning(base64, linkImageFile.type, COMPONENTS, buildLayoutContext());
+      setStatus("✓ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
       if (linkFileInputRef.current) linkFileInputRef.current.value = "";
     } catch (err) {
-      setStatus(`âœ— Error: ${err.message || "Logo with Text insert failed."}`);
+      setStatus(`✗ Error: ${err.message || "Logo with Text insert failed."}`);
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
@@ -184,7 +209,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS);
+      await insertFigureImage(base64, COMPONENTS, buildLayoutContext());
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -247,9 +272,8 @@ export default function App() {
         return;
       }
       const docId = Office?.context?.document?.settings?.get("appDocId");
-      if (!docId) {
-        return;
-      }
+      if (!docId) return;
+
       const file = await getCurrentWordFile();
       const formData = new FormData();
       formData.append("file", file);
@@ -257,7 +281,6 @@ export default function App() {
       log(`Uploading to: ${transformUrl}`);
       const response = await fetch(transformUrl, {
         method: "POST",
-        // mode: "cors",
         body: formData,
         signal: AbortSignal.timeout(30000)
       }).catch((err) => {
@@ -279,7 +302,7 @@ export default function App() {
       const documentId = result.document_id || docId;
       const webHeaders = new Headers();
       webHeaders.append("Content-Type", "application/json");
-      const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/api/output/${clickType === "PDF" ? 'pdf' : 'web'}`;
+      const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/api/output/${clickType === "PDF" ? "pdf" : "web"}`;
       log(`Uploading to: ${webOutputUrl}`);
       const webResponse = await fetch(webOutputUrl, {
         method: "POST",
@@ -299,9 +322,6 @@ export default function App() {
       }
       const webResults = await webResponse.json();
       log(`Received web response: ${JSON.stringify(webResults)}`);
-      // window.open(webResults.url, "_blank");
-      // Office.context.ui.openBrowserWindow(webResults.url);
-      // Office.context.ui.openBrowserWindow(`${webResults.url}`);
       const a = document.createElement("a");
       a.href = webResults.url;
       a.target = "_blank";
@@ -331,8 +351,6 @@ export default function App() {
         <div className="brand-logo">
           <img src="../assets/Author_Logo.png" alt="Brand Logo" className="brand-logo-img" />
         </div>
-
-        {/* ── Tabs ── */}
         <div className="tab-bar">
           <button
             className={`tab-btn${activeTab === "content" ? " tab-btn--active" : ""}`}
@@ -359,15 +377,85 @@ export default function App() {
           </option>
         ))}
       </select>
+
+      {/* ── Layout context panel ────────────────────────────────────────────── */}
+      {/* Authors set page / column context BEFORE clicking any component card. */}
+      {/* This metadata is embedded invisibly into each content-control tag.    */}
+      <div className="layout-context-panel">
+        <div className="layout-context-row">
+          {/* Page number */}
+          <label className="layout-context-label">
+            Page
+            <input
+              type="number"
+              min="1"
+              value={pageNumber}
+              onChange={(e) => setPageNumber(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="layout-context-input layout-context-input--page"
+            />
+          </label>
+
+          {/* Layout mode toggle */}
+          <label className="layout-context-label">
+            Layout
+            <div className="layout-mode-toggle">
+              {LAYOUT_MODES.map((m) => (
+                <button
+                  key={m.value}
+                  className={`layout-mode-btn${layoutMode === m.value ? " layout-mode-btn--active" : ""}`}
+                  onClick={() => {
+                    setLayoutMode(m.value);
+                    if (m.value === "full") setLayoutColumn(1);
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </label>
+
+          {/* Column selector — only shown when two-col is active */}
+          {layoutMode === "two-col" && (
+            <label className="layout-context-label">
+              Column
+              <div className="layout-mode-toggle">
+                {[1, 2].map((col) => (
+                  <button
+                    key={col}
+                    className={`layout-mode-btn${layoutColumn === col ? " layout-mode-btn--active" : ""}`}
+                    onClick={() => setLayoutColumn(col)}
+                  >
+                    Col {col}
+                  </button>
+                ))}
+              </div>
+            </label>
+          )}
+        </div>
+
+        {/* Live preview of what will be embedded */}
+        <div className="layout-context-badge">
+          <span>📄 p.{pageNumber}</span>
+          <span className="layout-context-badge-sep">·</span>
+          {layoutMode === "full"
+            ? <span>Full width</span>
+            : <span>Column {layoutColumn} of 2</span>
+          }
+        </div>
+      </div>
+      {/* ─────────────────────────────────────────────────────────────────────── */}
+
       {/* ── Main ── */}
       <main className="addin-main">
-        {status && <p className={`intruction-text ${status.startsWith("✓") ? " instruction-text--success" : " instruction-text--error"}`}>
-          <InstrcutionIcon />
-          {status}
-        </p>}
+        {status && (
+          <p className={`intruction-text${status.startsWith("✓") ? " instruction-text--success" : " instruction-text--error"}`}>
+            <InstrcutionIcon />
+            {status}
+          </p>
+        )}
+
         {activeTab === "content" ? (
           <>
-            {/* Header section */}
             <section className="component-section">
               <h2 className="section-heading">Header</h2>
               <div className="card-grid">
@@ -377,7 +465,6 @@ export default function App() {
               </div>
             </section>
             <div className="section-divider" />
-            {/* Text section */}
             <section className="component-section">
               <h2 className="section-heading">Text</h2>
               <div className="card-grid">
@@ -388,7 +475,6 @@ export default function App() {
             </section>
           </>
         ) : (
-          /* Image tab */
           <section className="image-section">
             <div
               className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
@@ -401,7 +487,6 @@ export default function App() {
                 <img src={imagePreview} alt="preview" className="drop-zone-preview" />
               ) : (
                 <>
-                  {/* Image icon */}
                   <div className="drop-zone-icon">
                     <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
@@ -448,7 +533,6 @@ export default function App() {
               onChange={handleFileChange}
             />
 
-
             <div className="link-learning-panel">
               <div className="link-learning-top">
                 <div>
@@ -464,11 +548,10 @@ export default function App() {
               </div>
               <div className="link-learning-preview-row">
                 <div className="link-learning-logo-box">
-                  {linkImagePreview ? (
-                    <img src={linkImagePreview} alt="Logo with Text preview" />
-                  ) : (
-                    <span>Logo</span>
-                  )}
+                  {linkImagePreview
+                    ? <img src={linkImagePreview} alt="Logo with Text preview" />
+                    : <span>Logo</span>
+                  }
                 </div>
                 <div className="link-learning-text-preview">Text with Icon</div>
               </div>
@@ -478,7 +561,7 @@ export default function App() {
                   onClick={handleLinkToLearningInsert}
                   disabled={!linkImageFile || loading === "logo-with-text"}
                 >
-                  {loading === "logo-with-text" ? "Insertingâ€¦" : "Insert"}
+                  {loading === "logo-with-text" ? "Inserting…" : "Insert"}
                 </button>
                 {linkImagePreview && (
                   <button
@@ -503,34 +586,39 @@ export default function App() {
             </div>
           </section>
         )}
+
+
+
+        {debugInfo && (
+          <details className="debug-panel">
+            <summary>Debug Log</summary>
+            <pre>{debugInfo}</pre>
+          </details>
+        )}
       </main>
 
-      {/* ── Footer actions ── */}
+      {/* ── Footer ── */}
       <footer className="addin-footer">
-        <button className="footer-btn footer-btn--pdf" onClick={() => uploadDocument("PDF")} disabled={(apiType === "WEB" || apiLoadingStatus)}>
-          {apiLoadingStatus && apiType == "PDF" ? "Generating…" : "Preview Lesson PDF"}
+        <button
+          className="footer-btn footer-btn--pdf"
+          onClick={() => uploadDocument("PDF")}
+          disabled={apiType === "WEB" || apiLoadingStatus}
+        >
+          {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
         </button>
         <button
           className="footer-btn footer-btn--web"
           onClick={() => uploadDocument("WEB")}
           disabled={apiLoadingStatus}
         >
-          {apiLoadingStatus && apiType == "WEB" ? "Generating…" : "Preview Lesson"}
+          {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
         </button>
       </footer>
-
-      {/* ── Debug ── */}
-      {debugInfo && (
-        <details className="debug-panel">
-          <summary>Debug Log</summary>
-          <pre>{debugInfo}</pre>
-        </details>
-      )}
     </div>
   );
 }
 
-/* ─── Helper functions (unchanged) ───────────────────────────────────────── */
+/* ─── Helper functions ────────────────────────────────────────────────────── */
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -558,7 +646,22 @@ function wrapInContentControl(paragraph, meta) {
   return cc;
 }
 
-function buildMeta(id, COMPONENTS) {
+/**
+ * Builds the metadata object embedded in every content-control tag.
+ *
+ * Shape of the `layout` field:
+ * {
+ *   page:   number,           // logical PDF page number (author-set)
+ *   mode:   "full"|"two-col", // how this region renders in the final output
+ *   column: 1|2|null,         // which column (null when mode="full")
+ * }
+ *
+ * Python team reads cc.tag and gets this JSON. Front-end team uses layout.mode
+ * + layout.column to decide how to render the component:
+ *   - mode "full"    → component spans the full page width
+ *   - mode "two-col" → component goes into column 1 or 2 of a two-column layout
+ */
+function buildMeta(id, COMPONENTS, layoutContext) {
   const comp = COMPONENTS.find((c) => c.id === id);
   return {
     type: id,
@@ -567,14 +670,15 @@ function buildMeta(id, COMPONENTS) {
     version: "1.0",
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
-    placeholder: comp?.placeholder ?? ""
+    placeholder: comp?.placeholder ?? "",
+    layout: layoutContext,   // ← page / mode / column embedded here
   };
 }
 
-async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES) {
+async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutContext) {
   return Word.run(async (context) => {
     const range = context.document.body.getRange("End");
-    const meta = buildMeta(id, COMPONENTS);
+    const meta = buildMeta(id, COMPONENTS, layoutContext);
 
     if (id === "bullet-list") {
       return insertBulletItem(range, context, meta, STYLES);
@@ -608,30 +712,19 @@ function applyStyle(range, style) {
 }
 
 async function insertDualTextComponent(range, context, meta, config) {
-  const paragraph = range.insertParagraph(
-    config.text,
-    Word.InsertLocation.after
-  );
-
-  const prefixRange = paragraph.insertText(
-    config.prefix,
-    Word.InsertLocation.start
-  );
-
+  const paragraph = range.insertParagraph(config.text, Word.InsertLocation.after);
+  const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
   const fullRange = paragraph.getRange();
   applyStyle(fullRange, config.textStyle);
   applyStyle(prefixRange, config.prefixStyle);
-
   await context.sync();
-
   wrapInContentControl(paragraph, meta);
-
   await context.sync();
 }
 
-async function insertFigureImage(base64, COMPONENTS) {
+async function insertFigureImage(base64, COMPONENTS, layoutContext) {
   return Word.run(async (context) => {
-    const meta = buildMeta("figure-image", COMPONENTS);
+    const meta = buildMeta("figure-image", COMPONENTS, layoutContext);
     const range = context.document.body.getRange("End");
     const imagePara = range.insertParagraph("", Word.InsertLocation.after);
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
@@ -667,37 +760,19 @@ async function insertBulletItem(range, context, meta, STYLES) {
   await context.sync();
 }
 
-async function insertStyledComponent(
-  range,
-  context,
-  meta,
-  config
-) {
-  const paragraph = range.insertParagraph(
-    meta.placeholder,
-    Word.InsertLocation.after
-  );
-
+async function insertStyledComponent(range, context, meta, config) {
+  const paragraph = range.insertParagraph(meta.placeholder, Word.InsertLocation.after);
   paragraph.spaceAfter = 10;
-
   const paragraphRange = paragraph.getRange();
-
   applyStyle(paragraphRange, config.style);
-
-  if (config.allCaps) {
-    // paragraphRange.font.allCaps = true;
-  }
-
   await context.sync();
-
   wrapInContentControl(paragraph, meta);
-
   await context.sync();
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext) {
   return Word.run(async (context) => {
-    const meta = buildMeta("logo-with-text", COMPONENTS);
+    const meta = buildMeta("logo-with-text", COMPONENTS, layoutContext);
     const platform = String(
       Office?.context?.platform || Office?.context?.diagnostics?.platform || ""
     ).toLowerCase();
@@ -707,7 +782,7 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) 
 
     if (isWordWeb) {
       const html = `
-        <table style="border-collapse:collapse;border:none;width:auto;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <table style="border-collapse:collapse;border:none;width:auto;">
           <colgroup>
             <col width="28" style="width:28pt;max-width:28pt;" />
             <col style="width:auto;" />
@@ -729,14 +804,8 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) 
       return;
     }
 
-    const table = range.insertTable(
-      1,
-      2,
-      Word.InsertLocation.after,
-      [["", " START TYPING..."]]
-    );
+    const table = range.insertTable(1, 2, Word.InsertLocation.after, [["", " START TYPING..."]]);
 
-    // Remove visible borders.
     [
       Word.BorderLocation.top,
       Word.BorderLocation.bottom,
@@ -756,9 +825,7 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) 
 
     const imageCell = table.getCell(0, 0);
     const textCell = table.getCell(0, 1);
-
     imageCell.columnWidth = 28;
-
     imageCell.verticalAlignment = Word.VerticalAlignment.center;
     textCell.verticalAlignment = Word.VerticalAlignment.center;
 
@@ -780,18 +847,12 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS) 
     textRange.font.bold = true;
     textRange.font.color = "#1F1F1F";
 
-    const img = imageParagraph.insertInlinePictureFromBase64(
-      base64,
-      Word.InsertLocation.start
-    );
-
+    const img = imageParagraph.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 24;
     img.height = 24;
 
     await context.sync();
-
     wrapInContentControl(table, meta);
-
     await context.sync();
   });
 }
