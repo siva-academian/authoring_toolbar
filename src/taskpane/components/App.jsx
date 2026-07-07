@@ -367,23 +367,26 @@ export default function App() {
         </div>
       </header>
 
-      <select
-        value={currentBook}
-        onChange={(e) => setCurrentBook(e.target.value)}
-      >
-        {Object.values(BOOKS).map((book) => (
-          <option key={book.id} value={book.id}>
-            {book.name}
-          </option>
-        ))}
-      </select>
-
-      {/* ── Layout context panel ────────────────────────────────────────────── */}
-      {/* Authors set page / column context BEFORE clicking any component card. */}
-      {/* This metadata is embedded invisibly into each content-control tag.    */}
       <div className="layout-context-panel">
+        {/* Book selector — now lives inside the layout context panel */}
         <div className="layout-context-row">
-          {/* Page number */}
+          <label className="layout-context-label layout-context-label--book">
+            Select Book Type
+            <select
+              className="book-select"
+              value={currentBook}
+              onChange={(e) => setCurrentBook(e.target.value)}
+            >
+              {Object.values(BOOKS).map((book) => (
+                <option key={book.id} value={book.id}>
+                  {book.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="layout-context-row">
           <label className="layout-context-label">
             Page
             <input
@@ -395,7 +398,6 @@ export default function App() {
             />
           </label>
 
-          {/* Layout mode toggle */}
           <label className="layout-context-label">
             Layout
             <div className="layout-mode-toggle">
@@ -414,7 +416,6 @@ export default function App() {
             </div>
           </label>
 
-          {/* Column selector — only shown when two-col is active */}
           {layoutMode === "two-col" && (
             <label className="layout-context-label">
               Column
@@ -433,7 +434,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Live preview of what will be embedded */}
         <div className="layout-context-badge">
           <span>📄 p.{pageNumber}</span>
           <span className="layout-context-badge-sep">·</span>
@@ -590,9 +590,12 @@ export default function App() {
 
 
         {debugInfo && (
-          <details className="debug-panel">
+          <details className="debug-panel" open>
             <summary>Debug Log</summary>
             <pre>{debugInfo}</pre>
+            <button className="clear-log" onClick={() => setDebugInfo(" ")}>
+              Clear Log
+            </button>
           </details>
         )}
       </main>
