@@ -513,6 +513,12 @@ export default function App() {
         >
           {apiLoadingStatus && apiType == "WEB" ? "Generating…" : "Preview Lesson"}
         </button>
+        <button className="footer-btn footer-btn--pdf" onClick={() => {}}>
+          Export EPUB
+        </button>
+        <button className="footer-btn footer-btn--pdf" onClick={() => {}}>
+          Content Differences
+        </button>
       </footer>
 
       {/* ── Status bar ── */}
