@@ -3,7 +3,7 @@ import "./App.css";
 import { STYLES, COMPONENTS, COMPONENT_CONFIG } from "./constants";
 
 const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
-const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com";
+const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com/qa";
 const REACT_APP_WEB_BASE_URL = "https://prjx.academian.com";
 
 // Pen icon SVG for the logo
