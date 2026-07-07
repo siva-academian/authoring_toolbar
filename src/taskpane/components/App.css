@@ -148,6 +148,151 @@ button:disabled {
   margin: 5px 0;
 }
 
+.section-divider {
+  height: 1px;
+  background: #7596A9B2;
+  margin: 5px 0;
+}
+
+/* ─── Layout context panel ───────────────────────────────────────────────── */
+.layout-context-label--book {
+  flex: 1 1 100%;
+}
+
+.layout-context-panel {
+  background: #fff;
+  border: 1px solid #c8d8de;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.layout-context-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.layout-context-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #556873;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.layout-context-input {
+  border: 1px solid #DCD9D9;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #F8F8F8;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.layout-context-input:focus {
+  outline: none;
+  border-color: #00c4b0;
+  background: #fff;
+}
+
+.layout-context-input--page {
+  width: 56px;
+  text-align: center;
+}
+
+.layout-mode-toggle {
+  display: flex;
+  background: #F8F8F8;
+  border: 1px solid #DCD9D9;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.layout-mode-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #667580;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.layout-mode-btn:hover {
+  color: #1a1a1a;
+}
+
+.layout-mode-btn--active {
+  background: #002863;
+  color: #fff;
+}
+
+.layout-mode-btn--active:hover {
+  color: #fff;
+}
+
+.layout-context-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #04228C;
+  background: #EAF3FF;
+  border-radius: 20px;
+  padding: 6px 12px;
+  align-self: flex-start;
+}
+
+.layout-context-badge-sep {
+  color: #9db4c4;
+}
+
+/* ─── Book selector ──────────────────────────────────────────────────────── */
+.book-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  max-width: 260px;
+  background: #F8F8F8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23556873' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+  background-size: 12px 8px;
+  border: 1px solid #DCD9D9;
+  border-radius: 6px;
+  padding: 6px 32px 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+
+.book-select:hover {
+  border-color: #00c4b0;
+}
+
+.book-select:focus {
+  outline: none;
+  border-color: #00c4b0;
+  background-color: #fff;
+}
+
+.book-select option {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
 /* ─── Component card ─────────────────────────────────────────────────────── */
 .component-card {
   background: #F8F8F8;
@@ -461,12 +606,23 @@ button:disabled {
 
 /* ─── Debug panel ────────────────────────────────────────────────────────── */
 .debug-panel {
-  /* position: fixed; */
   bottom: 0;
-  margin: 0 12px 12px;
   background: #1a1a1a;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
+}
+
+.clear-log {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: #c00000;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
 }
 
 .debug-panel summary {
