@@ -1,4 +1,4 @@
-export const BIOLOGY_COMPONENTS = [
+export const OPENER_COMPONENTS = [
   {
     id: "chapter-number",
     label: "Chapter Number",
@@ -93,7 +93,7 @@ export const BIOLOGY_COMPONENTS = [
   },
 ];
 
-export const BIOLOGY_STYLES = {
+export const OPENER_STYLES = {
   chapterHeading: {
     font: "Arial",
     size: 15,
@@ -168,49 +168,49 @@ export const BIOLOGY_STYLES = {
   }
 };
 
-export const BIOLOGY_COMPONENT_CONFIG = {
+export const OPENER_COMPONENT_CONFIG = {
   "chapter-number": {
-    style: BIOLOGY_STYLES.chapterHeading,
+    style: OPENER_STYLES.chapterHeading,
     allCaps: true,
   },
   "chapter-title": {
-    style: BIOLOGY_STYLES.chapterTitle,
+    style: OPENER_STYLES.chapterTitle,
   },
   "chapter-overview": {
-    style: BIOLOGY_STYLES.chapterOverview,
+    style: OPENER_STYLES.chapterOverview,
     allCaps: true,
   },
   "lesson-overview": {
-    style: BIOLOGY_STYLES.lessonOverview,
+    style: OPENER_STYLES.lessonOverview,
   },
   "lesson-title": {
-    style: BIOLOGY_STYLES.lessonTitle,
+    style: OPENER_STYLES.lessonTitle,
     allCaps: true,
   },
   "learning-objectives": {
-    style: BIOLOGY_STYLES.learningObjectives,
+    style: OPENER_STYLES.learningObjectives,
     allCaps: true,
   },
   "paragraph-text": {
-    style: BIOLOGY_STYLES.paragrapghText,
+    style: OPENER_STYLES.paragrapghText,
   },
   "section-title": {
-    style: BIOLOGY_STYLES.sectionTitle,
+    style: OPENER_STYLES.sectionTitle,
   },
   "sub-section-title": {
-    style: BIOLOGY_STYLES.subSectionTitle,
+    style: OPENER_STYLES.subSectionTitle,
   },
   "figure-caption": {
     dual: {
       prefix: "FIGURE 1.1",
       text: " Caption text here.",
-      prefixStyle: BIOLOGY_STYLES.imageFigureNumber,
-      textStyle: BIOLOGY_STYLES.imageFigureText,
+      prefixStyle: OPENER_STYLES.imageFigureNumber,
+      textStyle: OPENER_STYLES.imageFigureText,
     }
   }
 };
 
-export const MARKETING_COMPONENTS = [
+export const NON_OPENER_COMPONENTS = [
   {
     id: "part-number",
     label: "Part Number",
@@ -283,7 +283,7 @@ export const MARKETING_COMPONENTS = [
   },
 ];
 
-export const MARKETING_STYLES = {
+export const NON_OPENER_STYLES = {
   partNumber: {
     font: "Arial",
     size: 24,
@@ -373,68 +373,85 @@ export const MARKETING_STYLES = {
   },
 };
 
-export const MARKETING_COMPONENT_CONFIG = {
+export const NON_OPENER_COMPONENT_CONFIG = {
   "part-number": {
-    style: MARKETING_STYLES.partNumber,
+    style: NON_OPENER_STYLES.partNumber,
   },
 
   "chapter-number": {
-    style: MARKETING_STYLES.chapterHeading,
+    style: NON_OPENER_STYLES.chapterHeading,
   },
 
   "lesson-title": {
-    style: MARKETING_STYLES.lessonTitle,
+    style: NON_OPENER_STYLES.lessonTitle,
   },
 
   "learning-objectives": {
-    style: MARKETING_STYLES.learningObjectives,
+    style: NON_OPENER_STYLES.learningObjectives,
   },
 
   "paragraph-text": {
-    style: MARKETING_STYLES.paragraphText,
+    style: NON_OPENER_STYLES.paragraphText,
   },
 
   "sub-titles-list": {
     dual: {
       prefix: "1.1",
       text: " Define the term marketing",
-      prefixStyle: MARKETING_STYLES.subTitlesList.number,
-      textStyle: MARKETING_STYLES.subTitlesList.text,
+      prefixStyle: NON_OPENER_STYLES.subTitlesList.number,
+      textStyle: NON_OPENER_STYLES.subTitlesList.text,
     }
   },
 
   "section-title": {
-    style: MARKETING_STYLES.sectionTitle,
+    style: NON_OPENER_STYLES.sectionTitle,
   },
 
   "sub-section-title": {
-    style: MARKETING_STYLES.subSectionTitle,
+    style: NON_OPENER_STYLES.subSectionTitle,
   },
 
   "green-sub-section-title": {
-    style: MARKETING_STYLES.greenSubSectionTitle,
+    style: NON_OPENER_STYLES.greenSubSectionTitle,
   },
 
   "sub-title": {
-    style: MARKETING_STYLES.subTitle,
+    style: NON_OPENER_STYLES.subTitle,
   },
 };
 
-export const BOOKS = {
-  biology: {
-    id: "biology",
-    name: "BIOLOGY",
-    COMPONENTS: BIOLOGY_COMPONENTS,
-    STYLES: BIOLOGY_STYLES,
-    COMPONENT_CONFIG: BIOLOGY_COMPONENT_CONFIG,
+export const PAGE_TYPE = {
+  opener: {
+    id: "opener",
+    name: "Opener",
+    COMPONENTS: OPENER_COMPONENTS,
+    STYLES: OPENER_STYLES,
+    COMPONENT_CONFIG: OPENER_COMPONENT_CONFIG,
   },
-  marketing: {
-    id: "marketing",
-    name: "MARKETING",
-    COMPONENTS: MARKETING_COMPONENTS,
-    STYLES: MARKETING_STYLES,
-    COMPONENT_CONFIG: MARKETING_COMPONENT_CONFIG,
+  non_opener: {
+    id: "non-opener",
+    name: "Non Opener",
+    COMPONENTS: NON_OPENER_COMPONENTS,
+    STYLES: NON_OPENER_STYLES,
+    COMPONENT_CONFIG: NON_OPENER_COMPONENT_CONFIG,
   },
 };
 
-export const DEFAULT_BOOK = "biology";
+export const DEFAULT_PAGE = "opener";
+
+export const LAYOUT_COMPONENTS = [
+  {
+    id: "opener",
+    label: "Opener",
+    container: true,
+    preview: "",
+    placeholder: ""
+  },
+  {
+    id: "non-opener",
+    label: "Non Opener",
+    container: true,
+    preview: "",
+    placeholder: ""
+  }
+];
