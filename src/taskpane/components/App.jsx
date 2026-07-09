@@ -810,7 +810,8 @@ async function insertStyledComponent(
       Word.InsertLocation.end
     );
     await context.sync();
-    containerRange.select();
+    const contentRange = cc.getRange("End");
+    contentRange.select();
     await context.sync();
     return;
   }
