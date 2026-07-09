@@ -62,7 +62,8 @@ export default function App() {
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
   const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
-
+  const [showContainerModal, setShowContainerModal] = useState(false);
+  const [pendingComponent, setPendingComponent] = useState(null);
   const {
     COMPONENTS,
     STYLES,
@@ -112,6 +113,11 @@ export default function App() {
       await insertComponent(id, components, componentConfig, styles, buildLayoutContext());
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setPendingComponent(id);
+        setShowContainerModal(true);
+        return;
+      }
       setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
     } finally {
       setLoading(null);
@@ -325,44 +331,45 @@ export default function App() {
       setApiType(null);
     }
   };
-  //   async function createLayout(type) {
-  // 
-  //     await Word.run(async (context) => {
-  // 
-  //       const range = await getCursorRange(context);
-  // 
-  // 
-  //       const insertedRange = range.insertText(
-  //         "\n",
-  //         Word.InsertLocation.after
-  //       );
-  // 
-  // 
-  //       const cc = insertedRange.insertContentControl();
-  // 
-  // 
-  //       cc.title = type === "opener"
-  //         ? "Opener"
-  //         : "Non Opener";
-  // 
-  // 
-  //       cc.tag = JSON.stringify({
-  //         type,
-  //         container: true,
-  //         version: "1.0"
-  //       });
-  // 
-  // 
-  //       cc.appearance =
-  //         Word.ContentControlAppearance.boundingBox;
-  // 
-  // 
-  //       await context.sync();
-  // 
-  //     });
-  // 
-  // 
-  //   }
+
+  const insertInsideNewContainer = async (containerType) => {
+    try {
+      setShowContainerModal(false);
+
+      // Insert container directly
+      await insertComponent(
+        containerType,
+        LAYOUT_COMPONENTS,
+        {
+          [containerType]: {
+            style: {}
+          }
+        },
+        {},
+        buildLayoutContext()
+      );
+
+      // Wait for Word to update the selection
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Insert the original component
+      if (pendingComponent) {
+        await insertComponent(
+          pendingComponent,
+          COMPONENTS,
+          COMPONENT_CONFIG,
+          STYLES,
+          buildLayoutContext()
+        );
+      }
+
+      setPendingComponent(null);
+
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message);
+    }
+  };
 
   const headerComponents = COMPONENTS.filter((c) => c.category === "header");
   const textMediaComponents = COMPONENTS.filter((c) => c.category === "text-media");
@@ -613,6 +620,33 @@ export default function App() {
           </details>
         )}
       </main>
+      {
+        showContainerModal && (
+          <div className="container-modal-overlay">
+            <div className="container-modal">
+              <h3>Select Container</h3>
+              <p>
+                This component must be placed inside an Opener or Non Opener.
+              </p>
+              <button
+                onClick={() => insertInsideNewContainer("opener")}
+              >
+                Opener
+              </button>
+              <button
+                onClick={() => insertInsideNewContainer("non-opener")}
+              >
+                Non Opener
+              </button>
+              <button
+                onClick={() => setShowContainerModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )
+      }
 
       {/* ── Footer ── */}
       <footer className="addin-footer">
@@ -637,6 +671,7 @@ export default function App() {
           Content Differences
         </button>
       </footer>
+
     </div>
   );
 }
@@ -651,19 +686,9 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
-
-async function getCursorRange(context) {
-  const selection = context.document.getSelection();
-  selection.load("isEmpty");
-  await context.sync();
-  return selection;
-}
-
 async function getInsertionRange(context, componentId) {
-
   const selection = context.document.getSelection();
 
-  // Creating a container: no parent required
   if (componentId === "opener" || componentId === "non-opener") {
     return selection;
   }
@@ -675,9 +700,9 @@ async function getInsertionRange(context, componentId) {
   await context.sync();
 
   if (parentCC.isNullObject) {
-    throw new Error(
-      "Please place the cursor inside an Opener or Non Opener before inserting components."
-    );
+    const err = new Error("OUTSIDE_CONTAINER");
+    err.code = "OUTSIDE_CONTAINER";
+    throw err;
   }
 
   let meta;
@@ -689,9 +714,9 @@ async function getInsertionRange(context, componentId) {
   }
 
   if (!meta.container) {
-    throw new Error(
-      "Components can only be inserted inside an Opener or Non Opener."
-    );
+    const err = new Error("OUTSIDE_CONTAINER");
+    err.code = "OUTSIDE_CONTAINER";
+    throw err;
   }
 
   return selection;
@@ -736,17 +761,6 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutC
       return insertBulletItem(range, context, meta, STYLES);
     }
 
-    //     const config = COMPONENT_CONFIG[id];
-    //
-    //     if (config?.dual) {
-    //       await insertDualTextComponent(range, context, meta, config.dual);
-    //       return;
-    //     }
-    //
-    //     if (config) {
-    //       await insertStyledComponent(range, context, meta, config);
-    //     }
-
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
     if (config.dual) {
@@ -770,6 +784,47 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutC
   });
 }
 
+async function insertStyledComponent(
+  range,
+  context,
+  meta,
+  config
+) {
+
+  // Create paragraph first
+  const paragraph = range.insertParagraph(
+    meta.placeholder,
+    Word.InsertLocation.before
+  );
+  const cc = paragraph.insertContentControl();
+  cc.title = meta.label;
+  cc.tag = JSON.stringify(meta);
+  cc.appearance = Word.ContentControlAppearance.boundingBox;
+  cc.cannotDelete = false;
+  cc.cannotEdit = false;
+  await context.sync();
+  if (meta.container) {
+    const containerRange = cc.getRange();
+    containerRange.insertParagraph(
+      "",
+      Word.InsertLocation.end
+    );
+    await context.sync();
+    containerRange.select();
+    await context.sync();
+    return;
+  }
+  const body = cc.getRange();
+  body.insertText(
+    "",
+    Word.InsertLocation.end
+  );
+  if (config.style) {
+    applyStyle(body, config.style);
+  }
+  await context.sync();
+  body.select();
+}
 function applyStyle(range, style) {
   range.font.name = style.font;
   range.font.size = style.size;
@@ -829,86 +884,6 @@ async function insertBulletItem(range, context, meta, STYLES) {
   await context.sync();
   wrapInContentControl(p, meta);
   await context.sync();
-}
-
-// async function insertStyledComponent(range, context, meta, config) {
-//   const paragraph = range.insertParagraph(meta.placeholder, Word.InsertLocation.before);
-//   paragraph.spaceAfter = 10;
-//   const paragraphRange = paragraph.getRange();
-//   applyStyle(paragraphRange, config.style);
-//   await context.sync();
-//   wrapInContentControl(paragraph, meta);
-//   await context.sync();
-// }
-async function insertStyledComponent(
-  range,
-  context,
-  meta,
-  config
-) {
-
-  // Create paragraph first
-  const paragraph = range.insertParagraph(
-    meta.placeholder,
-    Word.InsertLocation.before
-  );
-
-  const cc = paragraph.insertContentControl();
-
-  cc.title = meta.label;
-  cc.tag = JSON.stringify(meta);
-  cc.appearance = Word.ContentControlAppearance.boundingBox;
-
-  cc.cannotDelete = false;
-  cc.cannotEdit = false;
-
-  await context.sync();
-
-
-  // ==============================
-  // OPENER / NON-OPENER CONTAINER
-  // ==============================
-  if (meta.container) {
-
-    // Insert an empty paragraph inside the content control
-    const containerRange = cc.getRange();
-
-    containerRange.insertParagraph(
-      "",
-      Word.InsertLocation.end
-    );
-
-    await context.sync();
-
-    // Move cursor inside container
-    containerRange.select();
-
-    await context.sync();
-
-    return;
-  }
-
-
-  // ==============================
-  // NORMAL COMPONENT
-  // ==============================
-
-  const body = cc.getRange();
-
-  body.insertText(
-    "",
-    Word.InsertLocation.end
-  );
-
-
-  if (config.style) {
-    applyStyle(body, config.style);
-  }
-
-
-  await context.sync();
-
-  body.select();
 }
 
 async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext) {
@@ -996,4 +971,11 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
     wrapInContentControl(table, meta);
     await context.sync();
   });
+}
+
+async function getCursorRange(context) {
+  const selection = context.document.getSelection();
+  selection.load("isEmpty");
+  await context.sync();
+  return selection;
 }
