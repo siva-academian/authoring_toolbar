@@ -5,6 +5,9 @@ import { PAGE_TYPE, DEFAULT_PAGE, LAYOUT_COMPONENTS } from "./constants";
 const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
 const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com/qa";
 const REACT_APP_WEB_BASE_URL = "https://prjx.academian.com";
+const CONTAINER_COMPONENT_IDS = ["opener", "non-opener"];
+
+const isContainerComponent = (id) => CONTAINER_COMPONENT_IDS.includes(id);
 
 const InstrcutionIcon = () => (
   <svg className="instruction-icon" width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -64,11 +67,15 @@ export default function App() {
   const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
+  const pageConfig =
+    PAGE_TYPE[currentPage ?? DEFAULT_PAGE] ||
+    Object.values(PAGE_TYPE).find((page) => page.id === currentPage) ||
+    PAGE_TYPE[DEFAULT_PAGE];
   const {
     COMPONENTS,
     STYLES,
     COMPONENT_CONFIG,
-  } = PAGE_TYPE[currentPage ?? DEFAULT_PAGE];
+  } = pageConfig;
 
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
@@ -335,39 +342,46 @@ export default function App() {
   const insertInsideNewContainer = async (containerType) => {
     try {
       setShowContainerModal(false);
+      log(`[container-modal] click "${containerType}", pendingComponent="${pendingComponent}"`);
 
-      // Insert container directly
-      await insertComponent(
-        containerType,
-        LAYOUT_COMPONENTS,
-        {
-          [containerType]: {
-            style: {}
-          }
-        },
-        {},
-        buildLayoutContext()
-      );
-
-      // Wait for Word to update the selection
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Insert the original component
       if (pendingComponent) {
-        await insertComponent(
+        // pendingComponent was chosen from the currently active page's
+        // component set, so reuse that exact set for the nested insert.
+        await insertComponentInsideNewContainer(
+          containerType,
           pendingComponent,
           COMPONENTS,
           COMPONENT_CONFIG,
           STYLES,
-          buildLayoutContext()
+          log
+        );
+      } else {
+        await insertComponent(
+          containerType,
+          LAYOUT_COMPONENTS,
+          {
+            [containerType]: {
+              style: {}
+            }
+          },
+          {},
+          containerType
         );
       }
 
+      log(`[container-modal] done`);
       setPendingComponent(null);
 
     } catch (err) {
       console.error(err);
-      setStatus(err.message);
+      log(`[container-modal] ERROR: ${err.message || err}`);
+      if (err.debugInfo) {
+        log(`[container-modal] debugInfo: ${JSON.stringify(err.debugInfo)}`);
+      }
+      if (err.stack) {
+        log(`[container-modal] stack: ${err.stack}`);
+      }
+      setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
     }
   };
 
@@ -405,14 +419,13 @@ export default function App() {
 
       {(activeTab === "content" || activeTab === "media") && (<>
         {/* Book selector — now lives inside the layout context panel */}
-        <div className="page-layout-panel">
-          <div className="page-layout-row">
-            <span className="page-layout-title">
-              Page Type Layout:
-            </span>
-            <div className="page-layout-buttons">
+        <div className="layoutctl-panel">
+          <div className="layoutctl-row">
+            <span className="layoutctl-label">Layout</span>
+            <div className="layoutctl-segmented" role="group" aria-label="Insert page layout">
               <button
-                className="page-layout-btn"
+                type="button"
+                className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "opener",
                   LAYOUT_COMPONENTS,
@@ -427,7 +440,8 @@ export default function App() {
                 Opener
               </button>
               <button
-                className="page-layout-btn"
+                type="button"
+                className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "non-opener",
                   LAYOUT_COMPONENTS,
@@ -443,21 +457,26 @@ export default function App() {
               </button>
             </div>
           </div>
-          <div className="page-layout-filter">
-            <label className="page-layout-filter-label">
-              Page Type Filter:
-            </label>
-            <select
-              className="page-layout-select"
-              value={currentPage}
-              onChange={(e) => setcurrentPage(e.target.value)}
-            >
-              {Object.values(PAGE_TYPE).map((page) => (
-                <option key={page.id} value={page.id}>
-                  {page.name}
-                </option>
-              ))}
-            </select>
+
+          <div className="layoutctl-row">
+            <label className="layoutctl-label" htmlFor="layoutctl-filter-select">Filter</label>
+            <div className="layoutctl-select-wrap">
+              <select
+                id="layoutctl-filter-select"
+                className="layoutctl-select"
+                value={currentPage}
+                onChange={(e) => setcurrentPage(e.target.value)}
+              >
+                {Object.values(PAGE_TYPE).map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.name}
+                  </option>
+                ))}
+              </select>
+              <svg className="layoutctl-select-chevron" width="9" height="5" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
         </div>
       </>
@@ -686,40 +705,99 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
-async function getInsertionRange(context, componentId) {
-  const selection = context.document.getSelection();
+function parseContentControlTag(tag) {
+  if (!tag) return null;
+  try {
+    return JSON.parse(tag);
+  } catch {
+    return null;
+  }
+}
 
-  if (componentId === "opener" || componentId === "non-opener") {
-    return selection;
+async function getContentControlContext(context, selection) {
+  let current = selection.parentContentControlOrNullObject;
+  let selectedComponent = null;
+
+  for (let depth = 0; depth < 20; depth += 1) {
+    current.load("isNullObject,tag");
+    await context.sync();
+
+    if (current.isNullObject) {
+      return { container: null, selectedComponent: null };
+    }
+
+    const meta = parseContentControlTag(current.tag);
+
+    if (meta?.container) {
+      return { container: current, selectedComponent };
+    }
+
+    selectedComponent = selectedComponent || current;
+    current = current.parentContentControlOrNullObject;
   }
 
-  const parentCC = selection.parentContentControlOrNullObject;
+  return { container: null, selectedComponent: null };
+}
 
-  parentCC.load("isNullObject,tag");
-
+/**
+ * Always resolves to the LAST opener/non-opener content control in
+ * document order — regardless of where the cursor/selection currently is.
+ * This is what makes clicking "Opener"/"Non Opener" deterministic: it
+ * always appends after the most recently inserted container, never nests,
+ * and never depends on the (sometimes unreliable) ambient selection.
+ */
+async function getLastContainerControl(context) {
+  const contentControls = context.document.body.contentControls;
+  contentControls.load("items/tag");
   await context.sync();
 
-  if (parentCC.isNullObject) {
+  let lastContainer = null;
+  for (const cc of contentControls.items) {
+    const meta = parseContentControlTag(cc.tag);
+    if (meta?.container) {
+      lastContainer = cc; // items are in document order, so the last match wins
+    }
+  }
+  return lastContainer;
+}
+
+async function getInsertionTarget(context, componentId) {
+  if (isContainerComponent(componentId)) {
+    const lastContainer = await getLastContainerControl(context);
+
+    if (lastContainer) {
+      return {
+        range: lastContainer.getRange(),
+        location: Word.InsertLocation.after,
+      };
+    }
+
+    return {
+      range: context.document.body.getRange(Word.RangeLocation.end),
+      location: Word.InsertLocation.before,
+    };
+  }
+
+  const selection = context.document.getSelection();
+  const { container, selectedComponent } = await getContentControlContext(context, selection);
+
+  if (!container) {
     const err = new Error("OUTSIDE_CONTAINER");
     err.code = "OUTSIDE_CONTAINER";
     throw err;
   }
 
-  let meta;
-
-  try {
-    meta = JSON.parse(parentCC.tag);
-  } catch {
-    throw new Error("Invalid parent content control.");
+  if (selectedComponent) {
+    return {
+      range: selectedComponent.getRange(),
+      location: Word.InsertLocation.after,
+    };
   }
 
-  if (!meta.container) {
-    const err = new Error("OUTSIDE_CONTAINER");
-    err.code = "OUTSIDE_CONTAINER";
-    throw err;
-  }
-
-  return selection;
+  return {
+    range: selection,
+    location: Word.InsertLocation.after,
+  };
 }
 
 function wrapInContentControl(paragraph, meta) {
@@ -754,18 +832,85 @@ function buildMeta(id, COMPONENTS, layoutContext) {
 
 async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutContext) {
   return Word.run(async (context) => {
-    const range = await getInsertionRange(context, id);
+    const target = await getInsertionTarget(context, id);
     const meta = buildMeta(id, COMPONENTS, layoutContext);
-
-    if (id === "bullet-list") {
-      return insertBulletItem(range, context, meta, STYLES);
-    }
-
     const config = COMPONENT_CONFIG[id] || { style: {} };
+
+    await insertComponentAtTarget(target, context, id, meta, config, STYLES);
+    await context.sync();
+  });
+}
+
+/**
+ * Inserts a brand-new opener/non-opener container, then inserts the
+ * originally-requested child component *inside* it.
+ *
+ * Rather than computing the child's insertion range analytically (which is
+ * ambiguous right at a content control's boundary and was the source of the
+ * "child doesn't get inserted" bug), this selects the cursor inside the
+ * freshly created container and re-uses the exact same, already-proven
+ * `getInsertionTarget` selection-based lookup that powers normal
+ * "insert into an existing container" clicks.
+ */
+async function insertComponentInsideNewContainer(
+  containerType,
+  childId,
+  childComponents,
+  childComponentConfig,
+  childStyles,
+  log = () => {}
+) {
+  return Word.run(async (context) => {
+    // 1. Create the container itself (opener / non-opener), always appended
+    //    after the last container in the document.
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    log(`[nested-insert] inserting container "${containerType}"`);
+
+    // selectAfterInsert = true so the cursor/selection ends up INSIDE the
+    // new container's content, and that selection is synced to Word.
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} },
+      true
+    );
+    log(`[nested-insert] container inserted, cc=${containerCc ? "ok" : "null"}`);
+
+    // 2. Now resolve the child's target the normal way: via the selection,
+    //    which currently sits inside the container we just created and
+    //    selected. This reuses the same logic that already works for
+    //    inserting into a pre-existing container.
+    log(`[nested-insert] resolving target for child "${childId}"`);
+    const childTarget = await getInsertionTarget(context, childId);
+    log(`[nested-insert] child target resolved, location=${childTarget.location}`);
+    const childMeta = buildMeta(childId, childComponents, containerType);
+    const childConfig = childComponentConfig[childId] || { style: {} };
+
+    log(`[nested-insert] inserting child "${childId}"`);
+    await insertComponentAtTarget(
+      childTarget,
+      context,
+      childId,
+      childMeta,
+      childConfig,
+      childStyles
+    );
+    await context.sync();
+    log(`[nested-insert] child inserted successfully`);
+  });
+}
+
+async function insertComponentAtTarget(target, context, id, meta, config, STYLES) {
+    if (id === "bullet-list") {
+      return insertBulletItem(target, context, meta, STYLES);
+    }
 
     if (config.dual) {
       await insertDualTextComponent(
-        range,
+        target,
         context,
         meta,
         config.dual
@@ -773,28 +918,38 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutC
       return;
     }
 
-    await insertStyledComponent(
-      range,
+    return insertStyledComponent(
+      target,
       context,
       meta,
       config
     );
-
-    await context.sync();
-  });
 }
 
 async function insertStyledComponent(
-  range,
+  target,
   context,
   meta,
-  config
+  config,
+  selectAfterInsert = true
 ) {
 
+  // For containers (opener/non-opener), the wrapping paragraph must have
+  // real, non-empty content from the very start. Previously a second
+  // paragraph was appended via `cc.getRange(content).insertParagraph(...,
+  // "End")` to give the container something selectable — but inserting
+  // exactly at a content control's range boundary is ambiguous in the Word
+  // API and that paragraph could land OUTSIDE the control. That's why the
+  // container showed the built-in "Click or tab here to enter text" hint
+  // (its real wrapped paragraph was still empty) and why selection-based
+  // child insertion was unreliable. Giving it non-empty text up front
+  // avoids that second, risky insert entirely.
+  const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
+
   // Create paragraph first
-  const paragraph = range.insertParagraph(
-    meta.placeholder,
-    Word.InsertLocation.before
+  const paragraph = target.range.insertParagraph(
+    initialText,
+    target.location
   );
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
@@ -804,27 +959,28 @@ async function insertStyledComponent(
   cc.cannotEdit = false;
   await context.sync();
   if (meta.container) {
-    const containerRange = cc.getRange();
-    containerRange.insertParagraph(
-      "",
-      Word.InsertLocation.end
-    );
-    await context.sync();
-    const contentRange = cc.getRange("End");
-    contentRange.select();
-    await context.sync();
-    return;
+    if (selectAfterInsert) {
+      // The container now has exactly one paragraph with real content, so
+      // selecting its content range reliably lands the cursor inside it.
+      cc.getRange(Word.RangeLocation.content).select(Word.SelectionMode.end);
+      await context.sync();
+    }
+    return cc;
   }
   const body = cc.getRange();
   body.insertText(
-    "",
+    " ",
     Word.InsertLocation.end
   );
   if (config.style) {
     applyStyle(body, config.style);
   }
   await context.sync();
-  body.select();
+  if (selectAfterInsert) {
+    body.select();
+    await context.sync();
+  }
+  return cc;
 }
 function applyStyle(range, style) {
   range.font.name = style.font;
@@ -838,8 +994,8 @@ function applyStyle(range, style) {
   }
 }
 
-async function insertDualTextComponent(range, context, meta, config) {
-  const paragraph = range.insertParagraph(config.text, Word.InsertLocation.before);
+async function insertDualTextComponent(target, context, meta, config) {
+  const paragraph = target.range.insertParagraph(config.text, target.location);
   const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
   const fullRange = paragraph.getRange();
   applyStyle(fullRange, config.textStyle);
@@ -852,8 +1008,8 @@ async function insertDualTextComponent(range, context, meta, config) {
 async function insertFigureImage(base64, COMPONENTS, layoutContext) {
   return Word.run(async (context) => {
     const meta = buildMeta("figure-image", COMPONENTS, layoutContext);
-    const range = await getInsertionRange(context);
-    const imagePara = range.insertParagraph("", Word.InsertLocation.before);
+    const target = await getInsertionTarget(context, "figure-image");
+    const imagePara = target.range.insertParagraph("", target.location);
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 414;
     img.alignment = Word.Alignment.centered;
@@ -876,8 +1032,8 @@ async function insertFigureImage(base64, COMPONENTS, layoutContext) {
   });
 }
 
-async function insertBulletItem(range, context, meta, STYLES) {
-  const p = range.insertParagraph("", Word.InsertLocation.before);
+async function insertBulletItem(target, context, meta, STYLES) {
+  const p = target.range.insertParagraph("", target.location);
   const r = p.getRange();
   applyStyle(r, STYLES.bullestList);
   p.startNewList();
@@ -895,7 +1051,7 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
     ).toLowerCase();
     const isWordWeb = platform.includes("online") || platform.includes("web");
 
-    const range = await getInsertionRange(context);
+    const target = await getInsertionTarget(context, "logo-with-text");
 
     if (isWordWeb) {
       const html = `
@@ -914,14 +1070,14 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
           </tr>
         </table>
       `;
-      const insertedRange = range.insertHtml(html, Word.InsertLocation.after);
+      const insertedRange = target.range.insertHtml(html, target.location);
       await context.sync();
       wrapInContentControl(insertedRange, meta);
       await context.sync();
       return;
     }
 
-    const table = range.insertTable(1, 2, Word.InsertLocation.after, [["", " START TYPING..."]]);
+    const table = target.range.insertTable(1, 2, target.location, [["", " START TYPING..."]]);
 
     [
       Word.BorderLocation.top,
