@@ -2,9 +2,9 @@ import React, { useState, useRef } from "react";
 import "./App.css";
 import { PAGE_TYPE, DEFAULT_PAGE, LAYOUT_COMPONENTS } from "./constants";
 
-const REACT_APP_TENANT_ID = "4379b1c922fe47a3bb96e7786b412bb4";
-const REACT_APP_BACKEND_BASE_URL = "https://api-prjx.academian.com/qa";
-const REACT_APP_WEB_BASE_URL = "https://prjx.academian.com";
+const REACT_APP_TENANT_ID = process.env.REACT_APP_TENANT_ID;
+const REACT_APP_BACKEND_BASE_URL = process.env.REACT_APP_BACKEND_BASE_URL;
+const REACT_APP_WEB_BASE_URL = process.env.REACT_APP_WEB_BASE_URL;
 const CONTAINER_COMPONENT_IDS = ["opener", "non-opener"];
 
 const isContainerComponent = (id) => CONTAINER_COMPONENT_IDS.includes(id);
@@ -300,7 +300,7 @@ export default function App() {
       const documentId = result.document_id || docId;
       const webHeaders = new Headers();
       webHeaders.append("Content-Type", "application/json");
-      const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/api/output/${clickType === "PDF" ? "pdf" : "web"}`;
+      const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
       log(`Uploading to: ${webOutputUrl}`);
       const webResponse = await fetch(webOutputUrl, {
         method: "POST",
@@ -406,7 +406,7 @@ export default function App() {
             className={`tab-btn${activeTab === "ai" ? " tab-btn--active" : ""}`}
             onClick={() => setActiveTab("ai")}
           >
-            AI Assistant
+            AI Assisted
           </button>
           <button
             className={`tab-btn${activeTab === "media" ? " tab-btn--active" : ""}`}
@@ -513,8 +513,22 @@ export default function App() {
             </section>
           </>
         ) : activeTab === "ai" ? (
-          <section className="component-section">
-            AI Assistant
+          <section className="component-section component-section--ai">
+            <button className="ai-buttons">
+              Summarize chapter
+            </button>
+            <button className="ai-buttons">
+              Improve writing
+            </button>
+            <button className="ai-buttons">
+              Generate objectives
+            </button>
+            <button className="ai-buttons">
+              Suggest template
+            </button>
+            <button className="ai-buttons">
+              Check accessibility
+            </button>
           </section>
         ) : (
           <section className="image-section">
@@ -766,10 +780,12 @@ async function getInsertionTarget(context, componentId) {
     const lastContainer = await getLastContainerControl(context);
 
     if (lastContainer) {
-      return {
-        range: lastContainer.getRange(),
-        location: Word.InsertLocation.after,
-      };
+      // Every opener/non-opener must start on its own page. Insert a page
+      // break right after the previous container first, then always
+      // append the new container at the very end of the document body —
+      // which, once the break above has been committed, is a fresh page.
+      lastContainer.getRange().insertBreak(Word.BreakType.page, Word.InsertLocation.after);
+      await context.sync();
     }
 
     return {
@@ -858,7 +874,7 @@ async function insertComponentInsideNewContainer(
   childComponents,
   childComponentConfig,
   childStyles,
-  log = () => {}
+  log = () => { }
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
@@ -904,26 +920,26 @@ async function insertComponentInsideNewContainer(
 }
 
 async function insertComponentAtTarget(target, context, id, meta, config, STYLES) {
-    if (id === "bullet-list") {
-      return insertBulletItem(target, context, meta, STYLES);
-    }
+  if (id === "bullet-list") {
+    return insertBulletItem(target, context, meta, STYLES);
+  }
 
-    if (config.dual) {
-      await insertDualTextComponent(
-        target,
-        context,
-        meta,
-        config.dual
-      );
-      return;
-    }
-
-    return insertStyledComponent(
+  if (config.dual) {
+    await insertDualTextComponent(
       target,
       context,
       meta,
-      config
+      config.dual
     );
+    return;
+  }
+
+  return insertStyledComponent(
+    target,
+    context,
+    meta,
+    config
+  );
 }
 
 async function insertStyledComponent(

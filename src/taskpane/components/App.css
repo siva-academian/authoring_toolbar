@@ -128,6 +128,30 @@ button:disabled {
   gap: 10px;
 }
 
+.component-section--ai {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ai-buttons {
+  color: #297EFF;
+  font-size: 11px;
+  border: none;
+  font-weight: 600;
+  border-radius: 5px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border: 1px solid #297EFF;
+  transition: background 0.15s, transform 0.1s;
+  letter-spacing: 0.1px;
+}
+
+.ai-buttons:hover:not(:disabled) {
+  background: #1565d8;
+  color: #fff;
+}
+
 .section-heading {
   font-size: 16px;
   font-weight: 700;

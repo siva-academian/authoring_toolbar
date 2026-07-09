@@ -92,6 +92,11 @@ module.exports = async (env, options) => {
       new webpack.ProvidePlugin({
         Promise: ["es6-promise", "Promise"],
       }),
+      new webpack.DefinePlugin({
+        "process.env.REACT_APP_TENANT_ID": JSON.stringify(process.env.REACT_APP_TENANT_ID),
+        "process.env.REACT_APP_BACKEND_BASE_URL": JSON.stringify(process.env.REACT_APP_BACKEND_BASE_URL),
+        "process.env.REACT_APP_WEB_BASE_URL": JSON.stringify(process.env.REACT_APP_WEB_BASE_URL),
+      }),
     ],
     devServer: {
       hot: true,
