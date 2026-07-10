@@ -67,6 +67,18 @@ export default function App() {
   const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
+
+  // ── Reliable "which container am I inserting into" tracking ──────────────
+  // Word Online does not reliably preserve/restore the document selection
+  // across a click into the taskpane the way Word Desktop does, so we can't
+  // depend on `context.document.getSelection()` still pointing at the right
+  // place on the *next* insert. Instead we track the active container's
+  // content-control id explicitly in a ref, and update it in two ways:
+  //   1. Programmatically, right after we create/enter a container.
+  //   2. From a DocumentSelectionChanged handler, when the user manually
+  //      clicks somewhere else in the document.
+  const activeContainerIdRef = useRef(null);
+
   const pageConfig =
     PAGE_TYPE[currentPage ?? DEFAULT_PAGE] ||
     Object.values(PAGE_TYPE).find((page) => page.id === currentPage) ||
@@ -84,6 +96,50 @@ export default function App() {
       Office?.context?.document?.settings.set("appDocId", docId);
       Office?.context?.document?.settings.saveAsync();
     }
+  }, []);
+
+  // Keep activeContainerIdRef in sync whenever the user clicks around the
+  // document by hand (not just when our own code inserts something).
+  React.useEffect(() => {
+    let registered = false;
+
+    const onSelectionChanged = async () => {
+      try {
+        await Word.run(async (context) => {
+          const selection = context.document.getSelection();
+          const { container } = await getContentControlContext(context, selection);
+          if (container) {
+            container.load("id");
+            await context.sync();
+            activeContainerIdRef.current = container.id;
+          }
+          // If the click landed outside any container, we deliberately do
+          // NOT clear activeContainerIdRef here — an accidental click just
+          // outside a container (e.g. on whitespace) shouldn't forget the
+          // container the user was just working in. It only changes when
+          // we can positively resolve a new one.
+        });
+      } catch (err) {
+        // Non-fatal — selection tracking is best-effort.
+      }
+    };
+
+    if (Office?.context?.document?.addHandlerAsync) {
+      Office.context.document.addHandlerAsync(
+        Office.EventType.DocumentSelectionChanged,
+        onSelectionChanged
+      );
+      registered = true;
+    }
+
+    return () => {
+      if (registered && Office?.context?.document?.removeHandlerAsync) {
+        Office.context.document.removeHandlerAsync(
+          Office.EventType.DocumentSelectionChanged,
+          { handler: onSelectionChanged }
+        );
+      }
+    };
   }, []);
 
   const log = (msg) =>
@@ -117,7 +173,14 @@ export default function App() {
     setStatus("");
     try {
       // Pass the current layout context so it gets embedded in the tag
-      await insertComponent(id, components, componentConfig, styles, buildLayoutContext());
+      await insertComponent(
+        id,
+        components,
+        componentConfig,
+        styles,
+        buildLayoutContext(),
+        activeContainerIdRef
+      );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
       if (err.code === "OUTSIDE_CONTAINER") {
@@ -163,12 +226,23 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64, linkImageFile.type, COMPONENTS, buildLayoutContext());
+      await insertLinkToLearning(
+        base64,
+        linkImageFile.type,
+        COMPONENTS,
+        buildLayoutContext(),
+        activeContainerIdRef
+      );
       setStatus("✓ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
       if (linkFileInputRef.current) linkFileInputRef.current.value = "";
     } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setPendingComponent("logo-with-text");
+        setShowContainerModal(true);
+        return;
+      }
       setStatus(`✗ Error: ${err.message || "Logo with Text insert failed."}`);
     } finally {
       setLoading(null);
@@ -207,11 +281,16 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, buildLayoutContext());
+      await insertFigureImage(base64, COMPONENTS, buildLayoutContext(), activeContainerIdRef);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
     } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setPendingComponent("figure-image");
+        setShowContainerModal(true);
+        return;
+      }
       setStatus(`✗ Error: ${err.message || "Image insert failed."}`);
     } finally {
       setLoading(null);
@@ -353,6 +432,7 @@ export default function App() {
           COMPONENTS,
           COMPONENT_CONFIG,
           STYLES,
+          activeContainerIdRef,
           log
         );
       } else {
@@ -365,7 +445,8 @@ export default function App() {
             }
           },
           {},
-          containerType
+          containerType,
+          activeContainerIdRef
         );
       }
 
@@ -775,7 +856,37 @@ async function getLastContainerControl(context) {
   return lastContainer;
 }
 
-async function getInsertionTarget(context, componentId) {
+/**
+ * Resolves the currently-active container by id (loaded from
+ * activeContainerIdRef.current) rather than the live document selection.
+ * This is the key fix for Word Online: taskpane clicks don't reliably
+ * preserve/restore the document selection the way Word Desktop does, so
+ * chaining inserts off `context.document.getSelection()` across separate
+ * `Word.run()` calls is flaky there. Resolving by a stored content-control
+ * id is reliable on both platforms.
+ */
+async function getContainerById(context, containerId) {
+  if (!containerId) return null;
+  const cc = context.document.contentControls.getByIdOrNullObject(containerId);
+  cc.load("isNullObject");
+  await context.sync();
+  return cc.isNullObject ? null : cc;
+}
+
+/**
+ * Resolves *where* the next insert should go, but deliberately stops short
+ * of computing an actual Range for the container case. Deriving a Range
+ * from a content control's boundary (via getRange(content)/select/etc.) is
+ * what kept breaking on Word Web — collapsed selections and content-range
+ * endpoints at a CC edge get interpreted inconsistently by insertParagraph.
+ *
+ * Instead, for anything going inside a container we hand back the
+ * ContentControl object itself. The caller inserts into it with
+ * `container.insertParagraph(text, InsertLocation.End)`, which is Word's
+ * own sanctioned "add a child to this content control" method and isn't
+ * subject to the boundary ambiguity a derived Range has.
+ */
+async function getInsertionTarget(context, componentId, activeContainerIdRef) {
   if (isContainerComponent(componentId)) {
     const lastContainer = await getLastContainerControl(context);
 
@@ -789,13 +900,27 @@ async function getInsertionTarget(context, componentId) {
     }
 
     return {
+      mode: "body",
       range: context.document.body.getRange(Word.RangeLocation.end),
       location: Word.InsertLocation.before,
     };
   }
 
+  // 1. Prefer the explicitly-tracked active container (reliable cross-batch,
+  //    works the same on Desktop and Web).
+  const activeContainerId = activeContainerIdRef?.current;
+  const trackedContainer = await getContainerById(context, activeContainerId);
+
+  if (trackedContainer) {
+    return { mode: "container", container: trackedContainer };
+  }
+
+  // 2. Fall back to the live selection (covers the case where the user
+  //    manually clicked into a container and our selection-changed handler
+  //    hasn't been registered/fired yet — e.g. very first insert of a
+  //    session, or a platform where addHandlerAsync isn't available).
   const selection = context.document.getSelection();
-  const { container, selectedComponent } = await getContentControlContext(context, selection);
+  const { container } = await getContentControlContext(context, selection);
 
   if (!container) {
     const err = new Error("OUTSIDE_CONTAINER");
@@ -803,17 +928,25 @@ async function getInsertionTarget(context, componentId) {
     throw err;
   }
 
-  if (selectedComponent) {
-    return {
-      range: selectedComponent.getRange(),
-      location: Word.InsertLocation.after,
-    };
-  }
+  return { mode: "container", container };
+}
 
-  return {
-    range: selection,
-    location: Word.InsertLocation.after,
-  };
+/**
+ * Creates the anchor paragraph for a new component, using whichever
+ * mechanism matches the target:
+ *  - "body": a normal, boundary-free Range insert (used only for the
+ *    opener/non-opener containers themselves, appended at the document's
+ *    top level — this has always worked reliably).
+ *  - "container": `ContentControl.insertParagraph`, which safely adds a
+ *    new child paragraph inside that specific content control regardless
+ *    of whether it already has content, without touching a derived Range
+ *    at the control's boundary.
+ */
+function createAnchorParagraph(target, initialText) {
+  if (target.mode === "container") {
+    return target.container.insertParagraph(initialText ?? "", Word.InsertLocation.end);
+  }
+  return target.range.insertParagraph(initialText ?? "", target.location);
 }
 
 function wrapInContentControl(paragraph, meta) {
@@ -846,14 +979,29 @@ function buildMeta(id, COMPONENTS, layoutContext) {
   };
 }
 
-async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutContext) {
+async function insertComponent(
+  id,
+  COMPONENTS,
+  COMPONENT_CONFIG,
+  STYLES,
+  layoutContext,
+  activeContainerIdRef
+) {
   return Word.run(async (context) => {
-    const target = await getInsertionTarget(context, id);
+    const target = await getInsertionTarget(context, id, activeContainerIdRef);
     const meta = buildMeta(id, COMPONENTS, layoutContext);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
-    await insertComponentAtTarget(target, context, id, meta, config, STYLES);
+    const cc = await insertComponentAtTarget(target, context, id, meta, config, STYLES);
     await context.sync();
+
+    // If we just created a new container, it becomes the active container
+    // for subsequent inserts.
+    if (meta.container && cc && activeContainerIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeContainerIdRef.current = cc.id;
+    }
   });
 }
 
@@ -861,12 +1009,10 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutC
  * Inserts a brand-new opener/non-opener container, then inserts the
  * originally-requested child component *inside* it.
  *
- * Rather than computing the child's insertion range analytically (which is
- * ambiguous right at a content control's boundary and was the source of the
- * "child doesn't get inserted" bug), this selects the cursor inside the
- * freshly created container and re-uses the exact same, already-proven
- * `getInsertionTarget` selection-based lookup that powers normal
- * "insert into an existing container" clicks.
+ * The container's content-control id is captured immediately after
+ * creation and used directly to target the child insert — no dependency
+ * on document selection surviving the round trip, which is what makes
+ * this reliable on Word Online as well as Desktop.
  */
 async function insertComponentInsideNewContainer(
   containerType,
@@ -874,34 +1020,40 @@ async function insertComponentInsideNewContainer(
   childComponents,
   childComponentConfig,
   childStyles,
+  activeContainerIdRef,
   log = () => { }
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
     log(`[nested-insert] inserting container "${containerType}"`);
 
-    // selectAfterInsert = true so the cursor/selection ends up INSIDE the
-    // new container's content, and that selection is synced to Word.
     const containerCc = await insertStyledComponent(
       containerTarget,
       context,
       containerMeta,
-      { style: {} },
-      true
+      { style: {} }
     );
-    log(`[nested-insert] container inserted, cc=${containerCc ? "ok" : "null"}`);
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
 
-    // 2. Now resolve the child's target the normal way: via the selection,
-    //    which currently sits inside the container we just created and
-    //    selected. This reuses the same logic that already works for
-    //    inserting into a pre-existing container.
+    // Immediately mark this new container as active, both for this insert
+    // and for any subsequent ones.
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+
+    // 2. Insert the child directly into the container we just created.
+    //    `containerCc` is a real ContentControl object at this point (not a
+    //    derived Range), so `mode: "container"` routes this through
+    //    `ContentControl.insertParagraph`, same as every other insert into
+    //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
-    const childTarget = await getInsertionTarget(context, childId);
-    log(`[nested-insert] child target resolved, location=${childTarget.location}`);
+    const childTarget = { mode: "container", container: containerCc };
     const childMeta = buildMeta(childId, childComponents, containerType);
     const childConfig = childComponentConfig[childId] || { style: {} };
 
@@ -942,31 +1094,14 @@ async function insertComponentAtTarget(target, context, id, meta, config, STYLES
   );
 }
 
-async function insertStyledComponent(
-  target,
-  context,
-  meta,
-  config,
-  selectAfterInsert = true
-) {
-
+async function insertStyledComponent(target, context, meta, config) {
   // For containers (opener/non-opener), the wrapping paragraph must have
-  // real, non-empty content from the very start. Previously a second
-  // paragraph was appended via `cc.getRange(content).insertParagraph(...,
-  // "End")` to give the container something selectable — but inserting
-  // exactly at a content control's range boundary is ambiguous in the Word
-  // API and that paragraph could land OUTSIDE the control. That's why the
-  // container showed the built-in "Click or tab here to enter text" hint
-  // (its real wrapped paragraph was still empty) and why selection-based
-  // child insertion was unreliable. Giving it non-empty text up front
-  // avoids that second, risky insert entirely.
+  // real, non-empty content from the very start so the container never
+  // shows Word's built-in "Click or tab here to enter text" placeholder
+  // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
-  // Create paragraph first
-  const paragraph = target.range.insertParagraph(
-    initialText,
-    target.location
-  );
+  const paragraph = createAnchorParagraph(target, initialText);
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
   cc.tag = JSON.stringify(meta);
@@ -974,28 +1109,20 @@ async function insertStyledComponent(
   cc.cannotDelete = false;
   cc.cannotEdit = false;
   await context.sync();
+
   if (meta.container) {
-    if (selectAfterInsert) {
-      // The container now has exactly one paragraph with real content, so
-      // selecting its content range reliably lands the cursor inside it.
-      cc.getRange(Word.RangeLocation.content).select(Word.SelectionMode.end);
-      await context.sync();
-    }
+    // No selection juggling needed here — activeContainerIdRef (set by the
+    // caller right after this returns) is what makes this container the
+    // target for the next insert, not the document selection.
     return cc;
   }
+
   const body = cc.getRange();
-  body.insertText(
-    " ",
-    Word.InsertLocation.end
-  );
+  body.insertText(" ", Word.InsertLocation.end);
   if (config.style) {
     applyStyle(body, config.style);
   }
   await context.sync();
-  if (selectAfterInsert) {
-    body.select();
-    await context.sync();
-  }
   return cc;
 }
 function applyStyle(range, style) {
@@ -1011,21 +1138,22 @@ function applyStyle(range, style) {
 }
 
 async function insertDualTextComponent(target, context, meta, config) {
-  const paragraph = target.range.insertParagraph(config.text, target.location);
+  const paragraph = createAnchorParagraph(target, config.text);
   const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
   const fullRange = paragraph.getRange();
   applyStyle(fullRange, config.textStyle);
   applyStyle(prefixRange, config.prefixStyle);
   await context.sync();
-  wrapInContentControl(paragraph, meta);
+  const cc = wrapInContentControl(paragraph, meta);
   await context.sync();
+  return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, layoutContext) {
+async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("figure-image", COMPONENTS, layoutContext);
-    const target = await getInsertionTarget(context, "figure-image");
-    const imagePara = target.range.insertParagraph("", target.location);
+    const target = await getInsertionTarget(context, "figure-image", activeContainerIdRef);
+    const imagePara = createAnchorParagraph(target, "");
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 414;
     img.alignment = Word.Alignment.centered;
@@ -1049,17 +1177,18 @@ async function insertFigureImage(base64, COMPONENTS, layoutContext) {
 }
 
 async function insertBulletItem(target, context, meta, STYLES) {
-  const p = target.range.insertParagraph("", target.location);
+  const p = createAnchorParagraph(target, "");
   const r = p.getRange();
   applyStyle(r, STYLES.bullestList);
   p.startNewList();
   p.listItem.level = 0;
   await context.sync();
-  wrapInContentControl(p, meta);
+  const cc = wrapInContentControl(p, meta);
   await context.sync();
+  return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text", COMPONENTS, layoutContext);
     const platform = String(
@@ -1067,7 +1196,16 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
     ).toLowerCase();
     const isWordWeb = platform.includes("online") || platform.includes("web");
 
-    const target = await getInsertionTarget(context, "logo-with-text");
+    const target = await getInsertionTarget(context, "logo-with-text", activeContainerIdRef);
+
+    // Anchor a real, throwaway paragraph first — either as a genuine child
+    // of the container (via ContentControl.insertParagraph) or at the
+    // document body level. This paragraph is now a normal node in the
+    // document, not a boundary-derived Range, so replacing ITS range with
+    // html/a table is safe wherever it landed.
+    const anchorParagraph = createAnchorParagraph(target, "");
+    await context.sync();
+    const anchorRange = anchorParagraph.getRange();
 
     if (isWordWeb) {
       const html = `
@@ -1086,14 +1224,14 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
           </tr>
         </table>
       `;
-      const insertedRange = target.range.insertHtml(html, target.location);
+      const insertedRange = anchorRange.insertHtml(html, Word.InsertLocation.replace);
       await context.sync();
       wrapInContentControl(insertedRange, meta);
       await context.sync();
       return;
     }
 
-    const table = target.range.insertTable(1, 2, target.location, [["", " START TYPING..."]]);
+    const table = anchorRange.insertTable(1, 2, Word.InsertLocation.replace, [["", " START TYPING..."]]);
 
     [
       Word.BorderLocation.top,
