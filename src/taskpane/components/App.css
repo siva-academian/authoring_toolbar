@@ -134,6 +134,12 @@ button:disabled {
   gap: 10px;
 }
 
+.publish-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
 .ai-buttons {
   color: #297EFF;
   font-size: 11px;
@@ -186,7 +192,6 @@ layoutctl-panel {
   --layoutctl-border: #E1E4EC;
   --layoutctl-text: #1F2430;
   --layoutctl-text-muted: #6B7280;
- 
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -196,14 +201,14 @@ layoutctl-panel {
   border: 1px solid var(--layoutctl-border);
   border-radius: 8px;
 }
- 
+
 .layoutctl-row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 10px 0;
 }
- 
+
 .layoutctl-label {
   flex-shrink: 0;
   width: 40px;
@@ -211,7 +216,7 @@ layoutctl-panel {
   font-weight: 600;
   color: var(--layoutctl-text-muted);
 }
- 
+
 /* Segmented Opener / Non-opener toggle */
 .layoutctl-segmented {
   display: flex;
@@ -221,7 +226,7 @@ layoutctl-panel {
   border-radius: 7px;
   padding: 2px;
 }
- 
+
 .layoutctl-segment {
   flex: 1;
   padding: 5px 8px;
@@ -235,26 +240,26 @@ layoutctl-panel {
   cursor: pointer;
   transition: background-color 120ms ease, box-shadow 120ms ease;
 }
- 
+
 .layoutctl-segment:hover {
   background: #FFFFFF;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
- 
+
 .layoutctl-segment:active {
   background: var(--layoutctl-accent-soft);
 }
- 
+
 .layoutctl-segment:focus-visible {
   outline: 2px solid var(--layoutctl-accent);
   outline-offset: 1px;
 }
- 
+
 .layoutctl-segment:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
- 
+
 /* Page Type Filter select */
 .layoutctl-select-wrap {
   position: relative;
@@ -262,7 +267,7 @@ layoutctl-panel {
   align-items: center;
   flex: 1;
 }
- 
+
 .layoutctl-select {
   width: 100%;
   appearance: none;
@@ -279,17 +284,17 @@ layoutctl-panel {
   cursor: pointer;
   transition: border-color 120ms ease;
 }
- 
+
 .layoutctl-select:hover {
   border-color: var(--layoutctl-accent);
 }
- 
+
 .layoutctl-select:focus-visible {
   outline: none;
   border-color: var(--layoutctl-accent);
   box-shadow: 0 0 0 2px var(--layoutctl-accent-soft);
 }
- 
+
 .layoutctl-select-chevron {
   position: absolute;
   right: 8px;
@@ -667,7 +672,7 @@ layoutctl-panel {
 
 .cancel-btn {
   background: transparent;
-  color: #666;
+  color: #FFFFFF;
   font-size: 13px;
   font-weight: 600;
   border: 1.5px solid #ccc;

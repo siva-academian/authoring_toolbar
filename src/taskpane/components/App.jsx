@@ -16,7 +16,7 @@ const InstrcutionIcon = () => (
 );
 
 const renderComponentCard = ({ comp, loading, handleCardClick }) => {
-  if (!comp || comp.id === "Image" || comp.id === "logo-with-text") return null;
+  if (!comp || comp.id === "image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
 
   return (
@@ -67,6 +67,7 @@ export default function App() {
   const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   // ── Reliable "which container am I inserting into" tracking ──────────────
   // Word Online does not reliably preserve/restore the document selection
@@ -159,8 +160,8 @@ export default function App() {
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
   ) => {
-    if (id === "Image") {
-      setActiveTab("image");
+    if (id === "image") {
+      setShowImageModal(true);
       setStatus("");
       return;
     }
@@ -277,7 +278,7 @@ export default function App() {
       setStatus("✗ Please select an image first.");
       return;
     }
-    setLoading("Image");
+    setLoading("image");
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
@@ -285,9 +286,11 @@ export default function App() {
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
+      setShowImageModal(false);
     } catch (err) {
       if (err.code === "OUTSIDE_CONTAINER") {
-        setPendingComponent("Image");
+        setShowImageModal(false);
+        setPendingComponent("image");
         setShowContainerModal(true);
         return;
       }
@@ -508,6 +511,7 @@ export default function App() {
 
   const headerComponents = COMPONENTS.filter((c) => c.category === "header");
   const textMediaComponents = COMPONENTS.filter((c) => c.category === "text-media");
+  const imageComponent = COMPONENTS.find((c) => c.id === "image");
 
   return (
     <div className="addin-root">
@@ -530,15 +534,15 @@ export default function App() {
             AI Assisted
           </button>
           <button
-            className={`tab-btn${activeTab === "media" ? " tab-btn--active" : ""}`}
-            onClick={() => setActiveTab("media")}
+            className={`tab-btn${activeTab === "publish" ? " tab-btn--active" : ""}`}
+            onClick={() => setActiveTab("publish")}
           >
-            Media
+            Publish
           </button>
         </div>
       </header>
 
-      {(activeTab === "content" || activeTab === "media") && (<>
+      {activeTab === "content" && (<>
         {/* Book selector — now lives inside the layout context panel */}
         <div className="layoutctl-panel">
           <div className="layoutctl-row">
@@ -632,134 +636,118 @@ export default function App() {
                 )}
               </div>
             </section>
+            <div className="section-divider" />
+            <section className="component-section">
+              <h2 className="section-heading">Media</h2>
+              <div className="card-grid">
+                {imageComponent && (
+                  <button
+                    key={imageComponent.id}
+                    className={`component-card${loading === "image" ? " component-card--loading" : ""}`}
+                    onClick={() => handleCardClick("image")}
+                    disabled={!!loading}
+                    aria-label={`Insert ${imageComponent.label}`}
+                  >
+                    <div className="component-card-top">
+                      <span className="component-card-label">
+                        {loading === "image" ? "Inserting…" : imageComponent.label}
+                      </span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              <div className="link-learning-panel">
+                <div className="link-learning-top">
+                  <div>
+                    <div className="link-learning-title">Icon with Title</div>
+                  </div>
+                  <button
+                    className="link-learning-upload"
+                    onClick={() => linkFileInputRef.current?.click()}
+                    disabled={loading === "logo-with-text"}
+                  >
+                    {linkImagePreview ? "Change" : "Upload Icon"}
+                  </button>
+                </div>
+                <div className="link-learning-preview-row">
+                  <div className="link-learning-logo-box">
+                    {linkImagePreview
+                      ? <img src={linkImagePreview} alt="Logo with Text preview" />
+                      : <span>Logo</span>
+                    }
+                  </div>
+                  <div className="link-learning-text-preview">Text with Icon</div>
+                </div>
+                <div className="link-learning-actions">
+                  <button
+                    className="insert-btn"
+                    onClick={handleLinkToLearningInsert}
+                    disabled={!linkImageFile || loading === "logo-with-text"}
+                  >
+                    {loading === "logo-with-text" ? "Inserting…" : "Insert"}
+                  </button>
+                  {linkImagePreview && (
+                    <button
+                      className="cancel-btn"
+                      onClick={() => {
+                        setLinkImageFile(null);
+                        setLinkImagePreview(null);
+                        if (linkFileInputRef.current) linkFileInputRef.current.value = "";
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={linkFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleLinkImageChange}
+                />
+              </div>
+            </section>
           </>
         ) : activeTab === "ai" ? (
           <section className="component-section component-section--ai">
             <button className="ai-buttons">
-              Summarize chapter
+              Create chapter summary
             </button>
             <button className="ai-buttons">
-              Improve writing
+              Create Objectives
             </button>
             <button className="ai-buttons">
-              Generate objectives
-            </button>
-            <button className="ai-buttons">
-              Suggest template
+              Apply style guide
             </button>
             <button className="ai-buttons">
               Check accessibility
             </button>
           </section>
         ) : (
-          <section className="image-section">
-            <div
-              className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
-              onClick={() => fileInputRef.current.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              {imagePreview ? (
-                <img src={imagePreview} alt="preview" className="drop-zone-preview" />
-              ) : (
-                <>
-                  <div className="drop-zone-icon">
-                    <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
-                      <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
-                      <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
-                      <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
-                      <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <p className="drop-zone-title">Drag &amp; drop image here</p>
-                  <p className="drop-zone-subtitle">or browse files</p>
-                  <button
-                    className="insert-btn"
-                    onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
-                    disabled={loading === "Image"}
-                  >
-                    {loading === "Image" ? "Inserting…" : "Insert into Word"}
-                  </button>
-                </>
-              )}
-            </div>
-            {imagePreview && (
-              <div className="image-actions">
-                <button
-                  className="insert-btn"
-                  onClick={handleImageInsert}
-                  disabled={!imageFile || loading === "Image"}
-                >
-                  {loading === "Image" ? "Inserting…" : "Insert into Word"}
-                </button>
-                <button
-                  className="cancel-btn"
-                  onClick={() => { setImageFile(null); setImagePreview(null); }}
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-
-            <div className="link-learning-panel">
-              <div className="link-learning-top">
-                <div>
-                  <div className="link-learning-title">Icon with Title</div>
-                </div>
-                <button
-                  className="link-learning-upload"
-                  onClick={() => linkFileInputRef.current?.click()}
-                  disabled={loading === "logo-with-text"}
-                >
-                  {linkImagePreview ? "Change" : "Upload Icon"}
-                </button>
-              </div>
-              <div className="link-learning-preview-row">
-                <div className="link-learning-logo-box">
-                  {linkImagePreview
-                    ? <img src={linkImagePreview} alt="Logo with Text preview" />
-                    : <span>Logo</span>
-                  }
-                </div>
-                <div className="link-learning-text-preview">Text with Icon</div>
-              </div>
-              <div className="link-learning-actions">
-                <button
-                  className="insert-btn"
-                  onClick={handleLinkToLearningInsert}
-                  disabled={!linkImageFile || loading === "logo-with-text"}
-                >
-                  {loading === "logo-with-text" ? "Inserting…" : "Insert"}
-                </button>
-                {linkImagePreview && (
-                  <button
-                    className="cancel-btn"
-                    onClick={() => {
-                      setLinkImageFile(null);
-                      setLinkImagePreview(null);
-                      if (linkFileInputRef.current) linkFileInputRef.current.value = "";
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-              <input
-                ref={linkFileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                style={{ display: "none" }}
-                onChange={handleLinkImageChange}
-              />
+          <section className="component-section publish-panel">
+            <div className="publish-actions">
+              <button
+                className="footer-btn footer-btn--pdf"
+                onClick={() => uploadDocument("PDF")}
+                disabled={apiType === "WEB" || apiLoadingStatus}
+              >
+                {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
+              </button>
+              <button
+                className="footer-btn footer-btn--web"
+                onClick={() => uploadDocument("WEB")}
+                disabled={apiLoadingStatus}
+              >
+                {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
+              </button>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+                Export EPUB
+              </button>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+                Content Differences
+              </button>
             </div>
           </section>
         )}
@@ -774,6 +762,83 @@ export default function App() {
           </details>
         )}
       </main>
+      {
+        showImageModal && (
+          <div className="container-modal-overlay" onClick={() => setShowImageModal(false)}>
+            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="image-modal-header">
+                <h3>Insert Image</h3>
+                <button
+                  type="button"
+                  className="image-modal-close"
+                  aria-label="Close"
+                  onClick={() => setShowImageModal(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <section className="image-section">
+                <div
+                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
+                  onClick={() => fileInputRef.current.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
+                  ) : (
+                    <>
+                      <div className="drop-zone-icon">
+                        <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
+                          <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
+                          <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
+                          <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
+                          <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <p className="drop-zone-title">Drag &amp; drop image here</p>
+                      <p className="drop-zone-subtitle">or browse files</p>
+                      <button
+                        className="insert-btn"
+                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
+                        disabled={loading === "image"}
+                      >
+                        {loading === "image" ? "Inserting…" : "Insert into Word"}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="image-actions">
+                    <button
+                      className="insert-btn"
+                      onClick={handleImageInsert}
+                      disabled={!imageFile || loading === "image"}
+                    >
+                      {loading === "image" ? "Inserting…" : "Insert into Word"}
+                    </button>
+                    <button
+                      className="cancel-btn"
+                      onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+              </section>
+            </div>
+          </div>
+        )
+      }
       {
         showContainerModal && (
           <div className="container-modal-overlay">
@@ -801,31 +866,6 @@ export default function App() {
           </div>
         )
       }
-
-      {/* ── Footer ── */}
-      <footer className="addin-footer">
-        <button
-          className="footer-btn footer-btn--pdf"
-          onClick={() => uploadDocument("PDF")}
-          disabled={apiType === "WEB" || apiLoadingStatus}
-        >
-          {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
-        </button>
-        <button
-          className="footer-btn footer-btn--web"
-          onClick={() => uploadDocument("WEB")}
-          disabled={apiLoadingStatus}
-        >
-          {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
-        </button>
-        <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
-          Export EPUB
-        </button>
-        <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
-          Content Differences
-        </button>
-      </footer>
-
     </div>
   );
 }
@@ -1191,8 +1231,8 @@ async function insertDualTextComponent(target, context, meta, config) {
 
 async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("Image", COMPONENTS, layoutContext);
-    const target = await getInsertionTarget(context, "Image", activeContainerIdRef);
+    const meta = buildMeta("image", COMPONENTS, layoutContext);
+    const target = await getInsertionTarget(context, "image", activeContainerIdRef);
 
     // 1. Create the anchor paragraph and insert the image into it.
     const imagePara = createAnchorParagraph(target, "");

@@ -282,6 +282,13 @@ export const NON_OPENER_COMPONENTS = [
     category: "header",
     placeholder: "Customer Value",
   },
+  {
+    id: "image",
+    label: "Image",
+    preview: null,
+    category: "text-media",
+    placeholder: null,
+  }
 ];
 
 export const NON_OPENER_STYLES = {
