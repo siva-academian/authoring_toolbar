@@ -16,7 +16,7 @@ const InstrcutionIcon = () => (
 );
 
 const renderComponentCard = ({ comp, loading, handleCardClick }) => {
-  if (!comp || comp.id === "figure-image" || comp.id === "logo-with-text") return null;
+  if (!comp || comp.id === "Image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
 
   return (
@@ -159,7 +159,7 @@ export default function App() {
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
   ) => {
-    if (id === "figure-image") {
+    if (id === "Image") {
       setActiveTab("image");
       setStatus("");
       return;
@@ -277,7 +277,7 @@ export default function App() {
       setStatus("✗ Please select an image first.");
       return;
     }
-    setLoading("figure-image");
+    setLoading("Image");
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
@@ -287,7 +287,7 @@ export default function App() {
       setImagePreview(null);
     } catch (err) {
       if (err.code === "OUTSIDE_CONTAINER") {
-        setPendingComponent("figure-image");
+        setPendingComponent("Image");
         setShowContainerModal(true);
         return;
       }
@@ -350,7 +350,6 @@ export default function App() {
       }
       const docId = Office?.context?.document?.settings?.get("appDocId");
       if (!docId) return;
-
       const file = await getCurrentWordFile();
       const formData = new FormData();
       formData.append("file", file);
@@ -372,11 +371,52 @@ export default function App() {
       }
       const result = await response.json();
       log(`Received response: ${JSON.stringify(result)}`);
-      if (result.status !== "ok") {
+      if (result.status === "failed" || result.status === "error") {
         log(`Upload failed: ${result.message || "Unknown error"}`);
         return;
       }
       const documentId = result.document_id || docId;
+
+      /* Status checking */
+      const statusUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${documentId}/status`;
+
+      const pollStatus = async () => {
+        while (true) {
+          const statusResponse = await fetch(statusUrl, {
+            method: "GET",
+            signal: AbortSignal.timeout(30000)
+          });
+
+          if (!statusResponse.ok) {
+            log(`Status API failed: ${statusResponse.status} ${statusResponse.statusText}`);
+            return false;
+          }
+
+          const statusResult = await statusResponse.json();
+          log(`Status response: ${JSON.stringify(statusResult)}`);
+
+          if (statusResult.status === "succeeded") {
+            log(`Document extraction succeeded. job_id: ${statusResult.job_id}`);
+            return true;
+          }
+
+          if (statusResult.status === "failed") {
+            log(`Document extraction failed for document_id: ${statusResult.document_id}`);
+            return false;
+          }
+
+          // Still pending/processing — wait 5 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      };
+
+      const isSucceeded = await pollStatus();
+      if (!isSucceeded) {
+        log(`Stopping: extraction did not succeed.`);
+        return;
+      }
+      /* Status checking end */
+
       const webHeaders = new Headers();
       webHeaders.append("Content-Type", "application/json");
       const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
@@ -638,9 +678,9 @@ export default function App() {
                   <button
                     className="insert-btn"
                     onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
-                    disabled={loading === "figure-image"}
+                    disabled={loading === "Image"}
                   >
-                    {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                    {loading === "Image" ? "Inserting…" : "Insert into Word"}
                   </button>
                 </>
               )}
@@ -650,9 +690,9 @@ export default function App() {
                 <button
                   className="insert-btn"
                   onClick={handleImageInsert}
-                  disabled={!imageFile || loading === "figure-image"}
+                  disabled={!imageFile || loading === "Image"}
                 >
-                  {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                  {loading === "Image" ? "Inserting…" : "Insert into Word"}
                 </button>
                 <button
                   className="cancel-btn"
@@ -1151,27 +1191,38 @@ async function insertDualTextComponent(target, context, meta, config) {
 
 async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("figure-image", COMPONENTS, layoutContext);
-    const target = await getInsertionTarget(context, "figure-image", activeContainerIdRef);
+    const meta = buildMeta("Image", COMPONENTS, layoutContext);
+    const target = await getInsertionTarget(context, "Image", activeContainerIdRef);
+
+    // 1. Create the anchor paragraph and insert the image into it.
     const imagePara = createAnchorParagraph(target, "");
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 414;
     img.alignment = Word.Alignment.centered;
-    const captionPara = imagePara.insertParagraph(" Caption text here.", Word.InsertLocation.after);
+    await context.sync();
+
+    // 2. Wrap ONLY the image paragraph in its content control first — same
+    //    boundary-safe pattern used everywhere else in this file
+    //    (wrapInContentControl). We deliberately do NOT build a combined
+    //    Range via startRange.expandTo(endRange) across two independently
+    //    created paragraphs: that derived Range can snap outward to the
+    //    surrounding container's own boundary on Word Web, which is what
+    //    caused the figure content control to wrap the whole container
+    //    instead of just the image + caption.
+    const cc = wrapInContentControl(imagePara, meta);
+    await context.sync();
+
+    // 3. Add the caption as a genuine child of the figure's own content
+    //    control via ContentControl.insertParagraph — the same
+    //    "sanctioned add-a-child" method used for container inserts
+    //    elsewhere in the file — so the caption ends up nested inside the
+    //    figure's cc, not outside it.
+    const captionPara = cc.insertParagraph(" Caption text here.", Word.InsertLocation.end);
     const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
     caption.font.bold = true;
     caption.font.color = "#C00000";
     captionPara.font.size = 10;
     caption.font.size = 10;
-    await context.sync();
-    const startRange = imagePara.getRange();
-    const endRange = captionPara.getRange();
-    await context.sync();
-    const figureRange = startRange.expandTo(endRange);
-    const cc = figureRange.insertContentControl();
-    cc.title = meta.label;
-    cc.tag = JSON.stringify(meta);
-    cc.appearance = Word.ContentControlAppearance.boundingBox;
     await context.sync();
   });
 }

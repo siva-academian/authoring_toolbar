@@ -62,7 +62,7 @@ export const OPENER_COMPONENTS = [
     placeholder: "",
   },
   {
-    id: "figure-image",
+    id: "image",
     label: "Image",
     preview: null,
     category: "text-media",
