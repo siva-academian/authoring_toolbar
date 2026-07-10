@@ -811,7 +811,7 @@ async function getInsertionTarget(context, componentId) {
   }
 
   return {
-    range: selection,
+    range: container.getRange(Word.RangeLocation.content),
     location: Word.InsertLocation.after,
   };
 }
