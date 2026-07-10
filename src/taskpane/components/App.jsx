@@ -16,7 +16,7 @@ const InstrcutionIcon = () => (
 );
 
 const renderComponentCard = ({ comp, loading, handleCardClick }) => {
-  if (!comp || comp.id === "figure-image" || comp.id === "logo-with-text") return null;
+  if (!comp || comp.id === "image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
 
   return (
@@ -67,6 +67,19 @@ export default function App() {
   const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+
+  // ── Reliable "which container am I inserting into" tracking ──────────────
+  // Word Online does not reliably preserve/restore the document selection
+  // across a click into the taskpane the way Word Desktop does, so we can't
+  // depend on `context.document.getSelection()` still pointing at the right
+  // place on the *next* insert. Instead we track the active container's
+  // content-control id explicitly in a ref, and update it in two ways:
+  //   1. Programmatically, right after we create/enter a container.
+  //   2. From a DocumentSelectionChanged handler, when the user manually
+  //      clicks somewhere else in the document.
+  const activeContainerIdRef = useRef(null);
+
   const pageConfig =
     PAGE_TYPE[currentPage ?? DEFAULT_PAGE] ||
     Object.values(PAGE_TYPE).find((page) => page.id === currentPage) ||
@@ -86,6 +99,50 @@ export default function App() {
     }
   }, []);
 
+  // Keep activeContainerIdRef in sync whenever the user clicks around the
+  // document by hand (not just when our own code inserts something).
+  React.useEffect(() => {
+    let registered = false;
+
+    const onSelectionChanged = async () => {
+      try {
+        await Word.run(async (context) => {
+          const selection = context.document.getSelection();
+          const { container } = await getContentControlContext(context, selection);
+          if (container) {
+            container.load("id");
+            await context.sync();
+            activeContainerIdRef.current = container.id;
+          }
+          // If the click landed outside any container, we deliberately do
+          // NOT clear activeContainerIdRef here — an accidental click just
+          // outside a container (e.g. on whitespace) shouldn't forget the
+          // container the user was just working in. It only changes when
+          // we can positively resolve a new one.
+        });
+      } catch (err) {
+        // Non-fatal — selection tracking is best-effort.
+      }
+    };
+
+    if (Office?.context?.document?.addHandlerAsync) {
+      Office.context.document.addHandlerAsync(
+        Office.EventType.DocumentSelectionChanged,
+        onSelectionChanged
+      );
+      registered = true;
+    }
+
+    return () => {
+      if (registered && Office?.context?.document?.removeHandlerAsync) {
+        Office.context.document.removeHandlerAsync(
+          Office.EventType.DocumentSelectionChanged,
+          { handler: onSelectionChanged }
+        );
+      }
+    };
+  }, []);
+
   const log = (msg) =>
     setDebugInfo(
       (prev) =>
@@ -103,8 +160,8 @@ export default function App() {
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
   ) => {
-    if (id === "figure-image") {
-      setActiveTab("image");
+    if (id === "image") {
+      setShowImageModal(true);
       setStatus("");
       return;
     }
@@ -117,7 +174,14 @@ export default function App() {
     setStatus("");
     try {
       // Pass the current layout context so it gets embedded in the tag
-      await insertComponent(id, components, componentConfig, styles, buildLayoutContext());
+      await insertComponent(
+        id,
+        components,
+        componentConfig,
+        styles,
+        buildLayoutContext(),
+        activeContainerIdRef
+      );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
       if (err.code === "OUTSIDE_CONTAINER") {
@@ -163,12 +227,23 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(linkImageFile);
-      await insertLinkToLearning(base64, linkImageFile.type, COMPONENTS, buildLayoutContext());
+      await insertLinkToLearning(
+        base64,
+        linkImageFile.type,
+        COMPONENTS,
+        buildLayoutContext(),
+        activeContainerIdRef
+      );
       setStatus("✓ Logo with Text inserted.");
       setLinkImageFile(null);
       setLinkImagePreview(null);
       if (linkFileInputRef.current) linkFileInputRef.current.value = "";
     } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setPendingComponent("logo-with-text");
+        setShowContainerModal(true);
+        return;
+      }
       setStatus(`✗ Error: ${err.message || "Logo with Text insert failed."}`);
     } finally {
       setLoading(null);
@@ -203,15 +278,22 @@ export default function App() {
       setStatus("✗ Please select an image first.");
       return;
     }
-    setLoading("figure-image");
+    setLoading("image");
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, buildLayoutContext());
+      await insertFigureImage(base64, COMPONENTS, buildLayoutContext(), activeContainerIdRef);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
+      setShowImageModal(false);
     } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setShowImageModal(false);
+        setPendingComponent("image");
+        setShowContainerModal(true);
+        return;
+      }
       setStatus(`✗ Error: ${err.message || "Image insert failed."}`);
     } finally {
       setLoading(null);
@@ -271,7 +353,6 @@ export default function App() {
       }
       const docId = Office?.context?.document?.settings?.get("appDocId");
       if (!docId) return;
-
       const file = await getCurrentWordFile();
       const formData = new FormData();
       formData.append("file", file);
@@ -293,11 +374,52 @@ export default function App() {
       }
       const result = await response.json();
       log(`Received response: ${JSON.stringify(result)}`);
-      if (result.status !== "ok") {
+      if (result.status === "failed" || result.status === "error") {
         log(`Upload failed: ${result.message || "Unknown error"}`);
         return;
       }
       const documentId = result.document_id || docId;
+
+      /* Status checking */
+      const statusUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${documentId}/status`;
+
+      const pollStatus = async () => {
+        while (true) {
+          const statusResponse = await fetch(statusUrl, {
+            method: "GET",
+            signal: AbortSignal.timeout(30000)
+          });
+
+          if (!statusResponse.ok) {
+            log(`Status API failed: ${statusResponse.status} ${statusResponse.statusText}`);
+            return false;
+          }
+
+          const statusResult = await statusResponse.json();
+          log(`Status response: ${JSON.stringify(statusResult)}`);
+
+          if (statusResult.status === "succeeded") {
+            log(`Document extraction succeeded. job_id: ${statusResult.job_id}`);
+            return true;
+          }
+
+          if (statusResult.status === "failed") {
+            log(`Document extraction failed for document_id: ${statusResult.document_id}`);
+            return false;
+          }
+
+          // Still pending/processing — wait 5 seconds before checking again
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      };
+
+      const isSucceeded = await pollStatus();
+      if (!isSucceeded) {
+        log(`Stopping: extraction did not succeed.`);
+        return;
+      }
+      /* Status checking end */
+
       const webHeaders = new Headers();
       webHeaders.append("Content-Type", "application/json");
       const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
@@ -353,6 +475,7 @@ export default function App() {
           COMPONENTS,
           COMPONENT_CONFIG,
           STYLES,
+          activeContainerIdRef,
           log
         );
       } else {
@@ -365,7 +488,8 @@ export default function App() {
             }
           },
           {},
-          containerType
+          containerType,
+          activeContainerIdRef
         );
       }
 
@@ -387,6 +511,7 @@ export default function App() {
 
   const headerComponents = COMPONENTS.filter((c) => c.category === "header");
   const textMediaComponents = COMPONENTS.filter((c) => c.category === "text-media");
+  const imageComponent = COMPONENTS.find((c) => c.id === "image");
 
   return (
     <div className="addin-root">
@@ -409,15 +534,15 @@ export default function App() {
             AI Assisted
           </button>
           <button
-            className={`tab-btn${activeTab === "media" ? " tab-btn--active" : ""}`}
-            onClick={() => setActiveTab("media")}
+            className={`tab-btn${activeTab === "publish" ? " tab-btn--active" : ""}`}
+            onClick={() => setActiveTab("publish")}
           >
-            Media
+            Publish
           </button>
         </div>
       </header>
 
-      {(activeTab === "content" || activeTab === "media") && (<>
+      {activeTab === "content" && (<>
         {/* Book selector — now lives inside the layout context panel */}
         <div className="layoutctl-panel">
           <div className="layoutctl-row">
@@ -511,134 +636,118 @@ export default function App() {
                 )}
               </div>
             </section>
+            <div className="section-divider" />
+            <section className="component-section">
+              <h2 className="section-heading">Media</h2>
+              <div className="card-grid">
+                {imageComponent && (
+                  <button
+                    key={imageComponent.id}
+                    className={`component-card${loading === "image" ? " component-card--loading" : ""}`}
+                    onClick={() => handleCardClick("image")}
+                    disabled={!!loading}
+                    aria-label={`Insert ${imageComponent.label}`}
+                  >
+                    <div className="component-card-top">
+                      <span className="component-card-label">
+                        {loading === "image" ? "Inserting…" : imageComponent.label}
+                      </span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              <div className="link-learning-panel">
+                <div className="link-learning-top">
+                  <div>
+                    <div className="link-learning-title">Icon with Title</div>
+                  </div>
+                  <button
+                    className="link-learning-upload"
+                    onClick={() => linkFileInputRef.current?.click()}
+                    disabled={loading === "logo-with-text"}
+                  >
+                    {linkImagePreview ? "Change" : "Upload Icon"}
+                  </button>
+                </div>
+                <div className="link-learning-preview-row">
+                  <div className="link-learning-logo-box">
+                    {linkImagePreview
+                      ? <img src={linkImagePreview} alt="Logo with Text preview" />
+                      : <span>Logo</span>
+                    }
+                  </div>
+                  <div className="link-learning-text-preview">Text with Icon</div>
+                </div>
+                <div className="link-learning-actions">
+                  <button
+                    className="insert-btn"
+                    onClick={handleLinkToLearningInsert}
+                    disabled={!linkImageFile || loading === "logo-with-text"}
+                  >
+                    {loading === "logo-with-text" ? "Inserting…" : "Insert"}
+                  </button>
+                  {linkImagePreview && (
+                    <button
+                      className="cancel-btn"
+                      onClick={() => {
+                        setLinkImageFile(null);
+                        setLinkImagePreview(null);
+                        if (linkFileInputRef.current) linkFileInputRef.current.value = "";
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={linkFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleLinkImageChange}
+                />
+              </div>
+            </section>
           </>
         ) : activeTab === "ai" ? (
           <section className="component-section component-section--ai">
             <button className="ai-buttons">
-              Summarize chapter
+              Create chapter summary
             </button>
             <button className="ai-buttons">
-              Improve writing
+              Create Objectives
             </button>
             <button className="ai-buttons">
-              Generate objectives
-            </button>
-            <button className="ai-buttons">
-              Suggest template
+              Apply style guide
             </button>
             <button className="ai-buttons">
               Check accessibility
             </button>
           </section>
         ) : (
-          <section className="image-section">
-            <div
-              className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
-              onClick={() => fileInputRef.current.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              {imagePreview ? (
-                <img src={imagePreview} alt="preview" className="drop-zone-preview" />
-              ) : (
-                <>
-                  <div className="drop-zone-icon">
-                    <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
-                      <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
-                      <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
-                      <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
-                      <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <p className="drop-zone-title">Drag &amp; drop image here</p>
-                  <p className="drop-zone-subtitle">or browse files</p>
-                  <button
-                    className="insert-btn"
-                    onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
-                    disabled={loading === "figure-image"}
-                  >
-                    {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
-                  </button>
-                </>
-              )}
-            </div>
-            {imagePreview && (
-              <div className="image-actions">
-                <button
-                  className="insert-btn"
-                  onClick={handleImageInsert}
-                  disabled={!imageFile || loading === "figure-image"}
-                >
-                  {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
-                </button>
-                <button
-                  className="cancel-btn"
-                  onClick={() => { setImageFile(null); setImagePreview(null); }}
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-
-            <div className="link-learning-panel">
-              <div className="link-learning-top">
-                <div>
-                  <div className="link-learning-title">Icon with Title</div>
-                </div>
-                <button
-                  className="link-learning-upload"
-                  onClick={() => linkFileInputRef.current?.click()}
-                  disabled={loading === "logo-with-text"}
-                >
-                  {linkImagePreview ? "Change" : "Upload Icon"}
-                </button>
-              </div>
-              <div className="link-learning-preview-row">
-                <div className="link-learning-logo-box">
-                  {linkImagePreview
-                    ? <img src={linkImagePreview} alt="Logo with Text preview" />
-                    : <span>Logo</span>
-                  }
-                </div>
-                <div className="link-learning-text-preview">Text with Icon</div>
-              </div>
-              <div className="link-learning-actions">
-                <button
-                  className="insert-btn"
-                  onClick={handleLinkToLearningInsert}
-                  disabled={!linkImageFile || loading === "logo-with-text"}
-                >
-                  {loading === "logo-with-text" ? "Inserting…" : "Insert"}
-                </button>
-                {linkImagePreview && (
-                  <button
-                    className="cancel-btn"
-                    onClick={() => {
-                      setLinkImageFile(null);
-                      setLinkImagePreview(null);
-                      if (linkFileInputRef.current) linkFileInputRef.current.value = "";
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-              <input
-                ref={linkFileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                style={{ display: "none" }}
-                onChange={handleLinkImageChange}
-              />
+          <section className="component-section publish-panel">
+            <div className="publish-actions">
+              <button
+                className="footer-btn footer-btn--pdf"
+                onClick={() => uploadDocument("PDF")}
+                disabled={apiType === "WEB" || apiLoadingStatus}
+              >
+                {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
+              </button>
+              <button
+                className="footer-btn footer-btn--web"
+                onClick={() => uploadDocument("WEB")}
+                disabled={apiLoadingStatus}
+              >
+                {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
+              </button>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+                Export EPUB
+              </button>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+                Content Differences
+              </button>
             </div>
           </section>
         )}
@@ -653,6 +762,83 @@ export default function App() {
           </details>
         )}
       </main>
+      {
+        showImageModal && (
+          <div className="container-modal-overlay" onClick={() => setShowImageModal(false)}>
+            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="image-modal-header">
+                <h3>Insert Image</h3>
+                <button
+                  type="button"
+                  className="image-modal-close"
+                  aria-label="Close"
+                  onClick={() => setShowImageModal(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <section className="image-section">
+                <div
+                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
+                  onClick={() => fileInputRef.current.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
+                  ) : (
+                    <>
+                      <div className="drop-zone-icon">
+                        <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
+                          <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
+                          <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
+                          <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
+                          <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <p className="drop-zone-title">Drag &amp; drop image here</p>
+                      <p className="drop-zone-subtitle">or browse files</p>
+                      <button
+                        className="insert-btn"
+                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
+                        disabled={loading === "image"}
+                      >
+                        {loading === "image" ? "Inserting…" : "Insert into Word"}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="image-actions">
+                    <button
+                      className="insert-btn"
+                      onClick={handleImageInsert}
+                      disabled={!imageFile || loading === "image"}
+                    >
+                      {loading === "image" ? "Inserting…" : "Insert into Word"}
+                    </button>
+                    <button
+                      className="cancel-btn"
+                      onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+              </section>
+            </div>
+          </div>
+        )
+      }
       {
         showContainerModal && (
           <div className="container-modal-overlay">
@@ -680,31 +866,6 @@ export default function App() {
           </div>
         )
       }
-
-      {/* ── Footer ── */}
-      <footer className="addin-footer">
-        <button
-          className="footer-btn footer-btn--pdf"
-          onClick={() => uploadDocument("PDF")}
-          disabled={apiType === "WEB" || apiLoadingStatus}
-        >
-          {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
-        </button>
-        <button
-          className="footer-btn footer-btn--web"
-          onClick={() => uploadDocument("WEB")}
-          disabled={apiLoadingStatus}
-        >
-          {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
-        </button>
-        <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
-          Export EPUB
-        </button>
-        <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
-          Content Differences
-        </button>
-      </footer>
-
     </div>
   );
 }
@@ -775,7 +936,37 @@ async function getLastContainerControl(context) {
   return lastContainer;
 }
 
-async function getInsertionTarget(context, componentId) {
+/**
+ * Resolves the currently-active container by id (loaded from
+ * activeContainerIdRef.current) rather than the live document selection.
+ * This is the key fix for Word Online: taskpane clicks don't reliably
+ * preserve/restore the document selection the way Word Desktop does, so
+ * chaining inserts off `context.document.getSelection()` across separate
+ * `Word.run()` calls is flaky there. Resolving by a stored content-control
+ * id is reliable on both platforms.
+ */
+async function getContainerById(context, containerId) {
+  if (!containerId) return null;
+  const cc = context.document.contentControls.getByIdOrNullObject(containerId);
+  cc.load("isNullObject");
+  await context.sync();
+  return cc.isNullObject ? null : cc;
+}
+
+/**
+ * Resolves *where* the next insert should go, but deliberately stops short
+ * of computing an actual Range for the container case. Deriving a Range
+ * from a content control's boundary (via getRange(content)/select/etc.) is
+ * what kept breaking on Word Web — collapsed selections and content-range
+ * endpoints at a CC edge get interpreted inconsistently by insertParagraph.
+ *
+ * Instead, for anything going inside a container we hand back the
+ * ContentControl object itself. The caller inserts into it with
+ * `container.insertParagraph(text, InsertLocation.End)`, which is Word's
+ * own sanctioned "add a child to this content control" method and isn't
+ * subject to the boundary ambiguity a derived Range has.
+ */
+async function getInsertionTarget(context, componentId, activeContainerIdRef) {
   if (isContainerComponent(componentId)) {
     const lastContainer = await getLastContainerControl(context);
 
@@ -789,13 +980,27 @@ async function getInsertionTarget(context, componentId) {
     }
 
     return {
+      mode: "body",
       range: context.document.body.getRange(Word.RangeLocation.end),
       location: Word.InsertLocation.before,
     };
   }
 
+  // 1. Prefer the explicitly-tracked active container (reliable cross-batch,
+  //    works the same on Desktop and Web).
+  const activeContainerId = activeContainerIdRef?.current;
+  const trackedContainer = await getContainerById(context, activeContainerId);
+
+  if (trackedContainer) {
+    return { mode: "container", container: trackedContainer };
+  }
+
+  // 2. Fall back to the live selection (covers the case where the user
+  //    manually clicked into a container and our selection-changed handler
+  //    hasn't been registered/fired yet — e.g. very first insert of a
+  //    session, or a platform where addHandlerAsync isn't available).
   const selection = context.document.getSelection();
-  const { container, selectedComponent } = await getContentControlContext(context, selection);
+  const { container } = await getContentControlContext(context, selection);
 
   if (!container) {
     const err = new Error("OUTSIDE_CONTAINER");
@@ -803,17 +1008,25 @@ async function getInsertionTarget(context, componentId) {
     throw err;
   }
 
-  if (selectedComponent) {
-    return {
-      range: selectedComponent.getRange(),
-      location: Word.InsertLocation.after,
-    };
-  }
+  return { mode: "container", container };
+}
 
-  return {
-    range: container.getRange(Word.RangeLocation.content),
-    location: Word.InsertLocation.after,
-  };
+/**
+ * Creates the anchor paragraph for a new component, using whichever
+ * mechanism matches the target:
+ *  - "body": a normal, boundary-free Range insert (used only for the
+ *    opener/non-opener containers themselves, appended at the document's
+ *    top level — this has always worked reliably).
+ *  - "container": `ContentControl.insertParagraph`, which safely adds a
+ *    new child paragraph inside that specific content control regardless
+ *    of whether it already has content, without touching a derived Range
+ *    at the control's boundary.
+ */
+function createAnchorParagraph(target, initialText) {
+  if (target.mode === "container") {
+    return target.container.insertParagraph(initialText ?? "", Word.InsertLocation.end);
+  }
+  return target.range.insertParagraph(initialText ?? "", target.location);
 }
 
 function wrapInContentControl(paragraph, meta) {
@@ -846,14 +1059,29 @@ function buildMeta(id, COMPONENTS, layoutContext) {
   };
 }
 
-async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutContext) {
+async function insertComponent(
+  id,
+  COMPONENTS,
+  COMPONENT_CONFIG,
+  STYLES,
+  layoutContext,
+  activeContainerIdRef
+) {
   return Word.run(async (context) => {
-    const target = await getInsertionTarget(context, id);
+    const target = await getInsertionTarget(context, id, activeContainerIdRef);
     const meta = buildMeta(id, COMPONENTS, layoutContext);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
-    await insertComponentAtTarget(target, context, id, meta, config, STYLES);
+    const cc = await insertComponentAtTarget(target, context, id, meta, config, STYLES);
     await context.sync();
+
+    // If we just created a new container, it becomes the active container
+    // for subsequent inserts.
+    if (meta.container && cc && activeContainerIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeContainerIdRef.current = cc.id;
+    }
   });
 }
 
@@ -861,12 +1089,10 @@ async function insertComponent(id, COMPONENTS, COMPONENT_CONFIG, STYLES, layoutC
  * Inserts a brand-new opener/non-opener container, then inserts the
  * originally-requested child component *inside* it.
  *
- * Rather than computing the child's insertion range analytically (which is
- * ambiguous right at a content control's boundary and was the source of the
- * "child doesn't get inserted" bug), this selects the cursor inside the
- * freshly created container and re-uses the exact same, already-proven
- * `getInsertionTarget` selection-based lookup that powers normal
- * "insert into an existing container" clicks.
+ * The container's content-control id is captured immediately after
+ * creation and used directly to target the child insert — no dependency
+ * on document selection surviving the round trip, which is what makes
+ * this reliable on Word Online as well as Desktop.
  */
 async function insertComponentInsideNewContainer(
   containerType,
@@ -874,34 +1100,40 @@ async function insertComponentInsideNewContainer(
   childComponents,
   childComponentConfig,
   childStyles,
+  activeContainerIdRef,
   log = () => { }
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
     log(`[nested-insert] inserting container "${containerType}"`);
 
-    // selectAfterInsert = true so the cursor/selection ends up INSIDE the
-    // new container's content, and that selection is synced to Word.
     const containerCc = await insertStyledComponent(
       containerTarget,
       context,
       containerMeta,
-      { style: {} },
-      true
+      { style: {} }
     );
-    log(`[nested-insert] container inserted, cc=${containerCc ? "ok" : "null"}`);
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
 
-    // 2. Now resolve the child's target the normal way: via the selection,
-    //    which currently sits inside the container we just created and
-    //    selected. This reuses the same logic that already works for
-    //    inserting into a pre-existing container.
+    // Immediately mark this new container as active, both for this insert
+    // and for any subsequent ones.
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+
+    // 2. Insert the child directly into the container we just created.
+    //    `containerCc` is a real ContentControl object at this point (not a
+    //    derived Range), so `mode: "container"` routes this through
+    //    `ContentControl.insertParagraph`, same as every other insert into
+    //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
-    const childTarget = await getInsertionTarget(context, childId);
-    log(`[nested-insert] child target resolved, location=${childTarget.location}`);
+    const childTarget = { mode: "container", container: containerCc };
     const childMeta = buildMeta(childId, childComponents, containerType);
     const childConfig = childComponentConfig[childId] || { style: {} };
 
@@ -942,31 +1174,14 @@ async function insertComponentAtTarget(target, context, id, meta, config, STYLES
   );
 }
 
-async function insertStyledComponent(
-  target,
-  context,
-  meta,
-  config,
-  selectAfterInsert = true
-) {
-
+async function insertStyledComponent(target, context, meta, config) {
   // For containers (opener/non-opener), the wrapping paragraph must have
-  // real, non-empty content from the very start. Previously a second
-  // paragraph was appended via `cc.getRange(content).insertParagraph(...,
-  // "End")` to give the container something selectable — but inserting
-  // exactly at a content control's range boundary is ambiguous in the Word
-  // API and that paragraph could land OUTSIDE the control. That's why the
-  // container showed the built-in "Click or tab here to enter text" hint
-  // (its real wrapped paragraph was still empty) and why selection-based
-  // child insertion was unreliable. Giving it non-empty text up front
-  // avoids that second, risky insert entirely.
+  // real, non-empty content from the very start so the container never
+  // shows Word's built-in "Click or tab here to enter text" placeholder
+  // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
-  // Create paragraph first
-  const paragraph = target.range.insertParagraph(
-    initialText,
-    target.location
-  );
+  const paragraph = createAnchorParagraph(target, initialText);
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
   cc.tag = JSON.stringify(meta);
@@ -974,28 +1189,20 @@ async function insertStyledComponent(
   cc.cannotDelete = false;
   cc.cannotEdit = false;
   await context.sync();
+
   if (meta.container) {
-    if (selectAfterInsert) {
-      // The container now has exactly one paragraph with real content, so
-      // selecting its content range reliably lands the cursor inside it.
-      cc.getRange(Word.RangeLocation.content).select(Word.SelectionMode.end);
-      await context.sync();
-    }
+    // No selection juggling needed here — activeContainerIdRef (set by the
+    // caller right after this returns) is what makes this container the
+    // target for the next insert, not the document selection.
     return cc;
   }
+
   const body = cc.getRange();
-  body.insertText(
-    " ",
-    Word.InsertLocation.end
-  );
+  body.insertText(" ", Word.InsertLocation.end);
   if (config.style) {
     applyStyle(body, config.style);
   }
   await context.sync();
-  if (selectAfterInsert) {
-    body.select();
-    await context.sync();
-  }
   return cc;
 }
 function applyStyle(range, style) {
@@ -1011,55 +1218,68 @@ function applyStyle(range, style) {
 }
 
 async function insertDualTextComponent(target, context, meta, config) {
-  const paragraph = target.range.insertParagraph(config.text, target.location);
+  const paragraph = createAnchorParagraph(target, config.text);
   const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
   const fullRange = paragraph.getRange();
   applyStyle(fullRange, config.textStyle);
   applyStyle(prefixRange, config.prefixStyle);
   await context.sync();
-  wrapInContentControl(paragraph, meta);
+  const cc = wrapInContentControl(paragraph, meta);
   await context.sync();
+  return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, layoutContext) {
+async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("figure-image", COMPONENTS, layoutContext);
-    const target = await getInsertionTarget(context, "figure-image");
-    const imagePara = target.range.insertParagraph("", target.location);
+    const meta = buildMeta("image", COMPONENTS, layoutContext);
+    const target = await getInsertionTarget(context, "image", activeContainerIdRef);
+
+    // 1. Create the anchor paragraph and insert the image into it.
+    const imagePara = createAnchorParagraph(target, "");
     const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
     img.width = 414;
     img.alignment = Word.Alignment.centered;
-    const captionPara = imagePara.insertParagraph(" Caption text here.", Word.InsertLocation.after);
+    await context.sync();
+
+    // 2. Wrap ONLY the image paragraph in its content control first — same
+    //    boundary-safe pattern used everywhere else in this file
+    //    (wrapInContentControl). We deliberately do NOT build a combined
+    //    Range via startRange.expandTo(endRange) across two independently
+    //    created paragraphs: that derived Range can snap outward to the
+    //    surrounding container's own boundary on Word Web, which is what
+    //    caused the figure content control to wrap the whole container
+    //    instead of just the image + caption.
+    const cc = wrapInContentControl(imagePara, meta);
+    await context.sync();
+
+    // 3. Add the caption as a genuine child of the figure's own content
+    //    control via ContentControl.insertParagraph — the same
+    //    "sanctioned add-a-child" method used for container inserts
+    //    elsewhere in the file — so the caption ends up nested inside the
+    //    figure's cc, not outside it.
+    const captionPara = cc.insertParagraph(" Caption text here.", Word.InsertLocation.end);
     const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
     caption.font.bold = true;
     caption.font.color = "#C00000";
     captionPara.font.size = 10;
     caption.font.size = 10;
     await context.sync();
-    const startRange = imagePara.getRange();
-    const endRange = captionPara.getRange();
-    await context.sync();
-    const figureRange = startRange.expandTo(endRange);
-    const cc = figureRange.insertContentControl();
-    cc.title = meta.label;
-    cc.tag = JSON.stringify(meta);
-    cc.appearance = Word.ContentControlAppearance.boundingBox;
-    await context.sync();
   });
 }
 
 async function insertBulletItem(target, context, meta, STYLES) {
-  const p = target.range.insertParagraph("", target.location);
+  const p = createAnchorParagraph(target, "");
   const r = p.getRange();
   applyStyle(r, STYLES.bullestList);
   p.startNewList();
   p.listItem.level = 0;
   await context.sync();
-  wrapInContentControl(p, meta);
+  const cc = wrapInContentControl(p, meta);
   await context.sync();
+  return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext, activeContainerIdRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text", COMPONENTS, layoutContext);
     const platform = String(
@@ -1067,7 +1287,16 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
     ).toLowerCase();
     const isWordWeb = platform.includes("online") || platform.includes("web");
 
-    const target = await getInsertionTarget(context, "logo-with-text");
+    const target = await getInsertionTarget(context, "logo-with-text", activeContainerIdRef);
+
+    // Anchor a real, throwaway paragraph first — either as a genuine child
+    // of the container (via ContentControl.insertParagraph) or at the
+    // document body level. This paragraph is now a normal node in the
+    // document, not a boundary-derived Range, so replacing ITS range with
+    // html/a table is safe wherever it landed.
+    const anchorParagraph = createAnchorParagraph(target, "");
+    await context.sync();
+    const anchorRange = anchorParagraph.getRange();
 
     if (isWordWeb) {
       const html = `
@@ -1086,14 +1315,14 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
           </tr>
         </table>
       `;
-      const insertedRange = target.range.insertHtml(html, target.location);
+      const insertedRange = anchorRange.insertHtml(html, Word.InsertLocation.replace);
       await context.sync();
       wrapInContentControl(insertedRange, meta);
       await context.sync();
       return;
     }
 
-    const table = target.range.insertTable(1, 2, target.location, [["", " START TYPING..."]]);
+    const table = anchorRange.insertTable(1, 2, Word.InsertLocation.replace, [["", " START TYPING..."]]);
 
     [
       Word.BorderLocation.top,
