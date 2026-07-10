@@ -235,9 +235,9 @@ export const NON_OPENER_COMPONENTS = [
   {
     id: "learning-objectives",
     label: "learning objectives",
-    preview: "Learning Objectives",
+    preview: "Learning Outcomes",
     category: "header",
-    placeholder: "Learning Objectives",
+    placeholder: "Learning Outcomes",
   },
   {
     id: "paragraph-text",
@@ -338,18 +338,10 @@ export const NON_OPENER_STYLES = {
   },
 
   lessonTitle: {
-    text: {
-      font: "Arial",
-      size: 17,
-      color: "#214880",
-      bold: true,
-    },
-    number: {
-      font: "Arial",
-      size: 18,
-      color: "#214880",
-      bold: true,
-    },
+    font: "Arial",
+    size: 18,
+    color: "#214880",
+    bold: true,
   },
 
   lessonOverview: {
@@ -422,23 +414,23 @@ export const NON_OPENER_COMPONENT_CONFIG = {
 };
 
 export const PAGE_TYPE = {
-  opener: {
-    id: "opener",
-    name: "Opener",
+  firstTheme: {
+    id: "first-theme",
+    name: "Theme 1",
     COMPONENTS: OPENER_COMPONENTS,
     STYLES: OPENER_STYLES,
     COMPONENT_CONFIG: OPENER_COMPONENT_CONFIG,
   },
-  non_opener: {
-    id: "non-opener",
-    name: "Non Opener",
+  secondTheme: {
+    id: "second-theme",
+    name: "Theme 2",
     COMPONENTS: NON_OPENER_COMPONENTS,
     STYLES: NON_OPENER_STYLES,
     COMPONENT_CONFIG: NON_OPENER_COMPONENT_CONFIG,
   },
 };
 
-export const DEFAULT_PAGE = "opener";
+export const DEFAULT_PAGE = "firstTheme";
 
 export const LAYOUT_COMPONENTS = [
   {
