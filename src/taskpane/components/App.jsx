@@ -787,16 +787,19 @@ export default function App() {
         ) : activeTab === "ai" ? (
           <section className="component-section component-section--ai">
             <button className="ai-buttons">
-              Create chapter summary
+              Generate CDD
             </button>
             <button className="ai-buttons">
-              Create Objectives
+              Generate Blueprint
             </button>
             <button className="ai-buttons">
-              Apply style guide
+              Generate Lesson Content
             </button>
             <button className="ai-buttons">
-              Check accessibility
+              Improve CDD Draft
+            </button>
+            <button className="ai-buttons">
+              Refine Module Blueprint
             </button>
           </section>
         ) : (
