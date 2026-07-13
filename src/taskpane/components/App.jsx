@@ -236,7 +236,6 @@ export default function App() {
           // container throws OUTSIDE_CONTAINER), so finding one of these is a
           // reliable signal that a container is no longer empty.
           if (meta && !meta.container) {
-            console.log("if")
             const resolvedPage =
               THEME_TYPE[theme] ||
               Object.values(THEME_TYPE).find((p) => p.id === theme);

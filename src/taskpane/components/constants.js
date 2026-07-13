@@ -461,6 +461,14 @@ export const THEME2_COMPONENT_CONFIG = {
     }
   },
 
+  "lesson-title": {
+    style: THEME2_STYLES.lessonTitle,
+  },
+
+  "lesson-overview": {
+    style: THEME2_STYLES.lessonOverview,
+  },
+
   "section-title": {
     style: THEME2_STYLES.sectionTitle,
   },
