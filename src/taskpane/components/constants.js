@@ -1,10 +1,10 @@
-export const OPENER_COMPONENTS = [
+export const THEME1_COMPONENTS = [
   {
     id: "chapter-number",
     label: "Chapter Number",
-    preview: "CHAPTER 01",
+    preview: "Chapter 1",
     category: "header",
-    placeholder: "CHAPTER 01",
+    placeholder: "Chapter 1",
   },
   {
     id: "chapter-title",
@@ -93,7 +93,7 @@ export const OPENER_COMPONENTS = [
   },
 ];
 
-export const OPENER_STYLES = {
+export const THEME1_STYLES = {
   chapterHeading: {
     font: "Arial",
     size: 15,
@@ -168,49 +168,49 @@ export const OPENER_STYLES = {
   }
 };
 
-export const OPENER_COMPONENT_CONFIG = {
+export const THEME1_COMPONENT_CONFIG = {
   "chapter-number": {
-    style: OPENER_STYLES.chapterHeading,
+    style: THEME1_STYLES.chapterHeading,
     allCaps: true,
   },
   "chapter-title": {
-    style: OPENER_STYLES.chapterTitle,
+    style: THEME1_STYLES.chapterTitle,
   },
   "chapter-overview": {
-    style: OPENER_STYLES.chapterOverview,
+    style: THEME1_STYLES.chapterOverview,
     allCaps: true,
   },
   "lesson-overview": {
-    style: OPENER_STYLES.lessonOverview,
+    style: THEME1_STYLES.lessonOverview,
   },
   "lesson-title": {
-    style: OPENER_STYLES.lessonTitle,
+    style: THEME1_STYLES.lessonTitle,
     allCaps: true,
   },
   "learning-objectives": {
-    style: OPENER_STYLES.learningObjectives,
+    style: THEME1_STYLES.learningObjectives,
     allCaps: true,
   },
   "paragraph-text": {
-    style: OPENER_STYLES.paragrapghText,
+    style: THEME1_STYLES.paragrapghText,
   },
   "section-title": {
-    style: OPENER_STYLES.sectionTitle,
+    style: THEME1_STYLES.sectionTitle,
   },
   "sub-section-title": {
-    style: OPENER_STYLES.subSectionTitle,
+    style: THEME1_STYLES.subSectionTitle,
   },
   "figure-caption": {
     dual: {
       prefix: "FIGURE 1.1",
       text: " Caption text here.",
-      prefixStyle: OPENER_STYLES.imageFigureNumber,
-      textStyle: OPENER_STYLES.imageFigureText,
+      prefixStyle: THEME1_STYLES.imageFigureNumber,
+      textStyle: THEME1_STYLES.imageFigureText,
     }
   }
 };
 
-export const NON_OPENER_COMPONENTS = [
+export const THEME2_COMPONENTS = [
   {
     id: "part-number",
     label: "Part Number",
@@ -226,8 +226,8 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "Chapter 1",
   },
   {
-    id: "lesson-title",
-    label: "Lesson Title",
+    id: "chapter-title",
+    label: "Chapter Title",
     preview: "An overview of Marketing",
     category: "header",
     placeholder: "An overview of Marketing",
@@ -235,9 +235,9 @@ export const NON_OPENER_COMPONENTS = [
   {
     id: "learning-objectives",
     label: "learning objectives",
-    preview: "Learning Objectives",
+    preview: "Learning Outcomes",
     category: "header",
-    placeholder: "Learning Objectives",
+    placeholder: "Learning Outcomes",
   },
   {
     id: "paragraph-text",
@@ -247,36 +247,37 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "",
   },
   {
-    id: "sub-titles-list",
-    label: "Sub Titles List",
-    preview: "1.1 Define the term marketing",
-    category: "header",
-    placeholder: "",
+    id: "figure-caption",
+    label: "Caption",
+    preview: "caption",
+    previewPrefix: "1-1",
+    category: "text-media",
+    placeholder: "1-1",
   },
   {
-    id: "section-title",
-    label: "Section Title",
+    id: "lesson-title",
+    label: "Lesson Title",
     preview: "1-1 What is Marketing",
     category: "header",
     placeholder: "1-1 What is Marketing",
   },
   {
-    id: "sub-section-title",
-    label: "Sub Section Title",
+    id: "lesson-overview",
+    label: "Lesson overview",
     preview: "1-1 Define the term marketing",
     category: "header",
     placeholder: "1-1 Define the term marketing",
   },
   {
-    id: "green-sub-section-title",
-    label: "Green Sub Section Title",
+    id: "section-title",
+    label: "Section Title",
     preview: "1-2a Production Orientation",
     category: "header",
     placeholder: "1-2a Production Orientation",
   },
   {
-    id: "sub-title",
-    label: "Sub Title",
+    id: "sub-section-title",
+    label: "Sub Section Title",
     preview: "Customer Value",
     category: "header",
     placeholder: "Customer Value",
@@ -287,10 +288,10 @@ export const NON_OPENER_COMPONENTS = [
     preview: null,
     category: "text-media",
     placeholder: null,
-  },
+  }
 ];
 
-export const NON_OPENER_STYLES = {
+export const THEME2_STYLES = {
   partNumber: {
     font: "Arial",
     size: 24,
@@ -307,7 +308,7 @@ export const NON_OPENER_STYLES = {
     backgroundColor: "#CA5027",
   },
 
-  lessonTitle: {
+  chapterTitle: {
     font: "Arial",
     size: 44,
     color: "#214880",
@@ -328,7 +329,7 @@ export const NON_OPENER_STYLES = {
     bold: false,
   },
 
-  subTitlesList: {
+  caption: {
     text: {
       font: "Arial",
       size: 11,
@@ -343,36 +344,28 @@ export const NON_OPENER_STYLES = {
     },
   },
 
-  sectionTitle: {
-    text: {
-      font: "Arial",
-      size: 17,
-      color: "#214880",
-      bold: true,
-    },
-    number: {
-      font: "Arial",
-      size: 18,
-      color: "#214880",
-      bold: true,
-    },
+  lessonTitle: {
+    font: "Arial",
+    size: 18,
+    color: "#214880",
+    bold: true,
   },
 
-  subSectionTitle: {
+  lessonOverview: {
     font: "Arial",
     size: 10,
     color: "#000000",
     bold: true,
   },
 
-  greenSubSectionTitle: {
+  sectionTitle: {
     font: "Arial",
     size: 15,
     color: "#00854A",
     bold: true,
   },
 
-  subTitle: {
+  subSectionTitle: {
     font: "Arial",
     size: 12,
     color: "#CA5027",
@@ -380,56 +373,50 @@ export const NON_OPENER_STYLES = {
   },
 };
 
-export const NON_OPENER_COMPONENT_CONFIG = {
+export const THEME2_COMPONENT_CONFIG = {
   "part-number": {
-    style: NON_OPENER_STYLES.partNumber,
+    style: THEME2_STYLES.partNumber,
   },
 
   "chapter-number": {
-    style: NON_OPENER_STYLES.chapterHeading,
+    style: THEME2_STYLES.chapterHeading,
   },
 
-  "lesson-title": {
-    style: NON_OPENER_STYLES.lessonTitle,
+  "chapter-title": {
+    style: THEME2_STYLES.chapterTitle,
   },
 
   "learning-objectives": {
-    style: NON_OPENER_STYLES.learningObjectives,
+    style: THEME2_STYLES.learningObjectives,
   },
 
   "paragraph-text": {
-    style: NON_OPENER_STYLES.paragraphText,
+    style: THEME2_STYLES.paragraphText,
   },
 
-  "sub-titles-list": {
+  "figure-caption": {
     dual: {
       prefix: "1.1",
       text: " Define the term marketing",
-      prefixStyle: NON_OPENER_STYLES.subTitlesList.number,
-      textStyle: NON_OPENER_STYLES.subTitlesList.text,
+      prefixStyle: THEME2_STYLES.caption.number,
+      textStyle: THEME2_STYLES.caption.text,
     }
+  },
+
+  "lesson-title": {
+    style: THEME2_STYLES.lessonTitle,
+  },
+
+  "lesson-overview": {
+    style: THEME2_STYLES.lessonOverview,
   },
 
   "section-title": {
-    dual: {
-      prefix: "1.1",
-      text: " What is Marketing",
-      prefixStyle: NON_OPENER_STYLES.sectionTitle.number,
-      textStyle: NON_OPENER_STYLES.sectionTitle.text,
-    }
-    //style: NON_OPENER_STYLES.sectionTitle,
+    style: THEME2_STYLES.sectionTitle,
   },
 
   "sub-section-title": {
-    style: NON_OPENER_STYLES.subSectionTitle,
-  },
-
-  "green-sub-section-title": {
-    style: NON_OPENER_STYLES.greenSubSectionTitle,
-  },
-
-  "sub-title": {
-    style: NON_OPENER_STYLES.subTitle,
+    style: THEME2_STYLES.subSectionTitle,
   },
 };
 
@@ -437,16 +424,16 @@ export const PAGE_TYPE = {
   firstTheme: {
     id: "first-theme",
     name: "Theme 1",
-    COMPONENTS: OPENER_COMPONENTS,
-    STYLES: OPENER_STYLES,
-    COMPONENT_CONFIG: OPENER_COMPONENT_CONFIG,
+    COMPONENTS: THEME1_COMPONENTS,
+    STYLES: THEME1_STYLES,
+    COMPONENT_CONFIG: THEME1_COMPONENT_CONFIG,
   },
   secondTheme: {
     id: "second-theme",
     name: "Theme 2",
-    COMPONENTS: NON_OPENER_COMPONENTS,
-    STYLES: NON_OPENER_STYLES,
-    COMPONENT_CONFIG: NON_OPENER_COMPONENT_CONFIG,
+    COMPONENTS: THEME2_COMPONENTS,
+    STYLES: THEME2_STYLES,
+    COMPONENT_CONFIG: THEME2_COMPONENT_CONFIG,
   },
 };
 
