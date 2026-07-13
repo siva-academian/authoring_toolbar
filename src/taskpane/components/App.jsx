@@ -64,11 +64,21 @@ export default function App() {
   const [apiType, setApiType] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
-  const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
+  // const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
+  const [currentPage, setcurrentPage] = useState(
+    () => Office?.context?.document?.settings.get("theme") || DEFAULT_PAGE
+  );
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const abortControllerRef = useRef(null);
+  // Whenever at least one of our components exists anywhere in the
+  // document, the Filter dropdown locks to the theme those components
+  // belong to (the other theme's option becomes disabled) so the user
+  // can't mix stylings from both themes in the same file. Once every
+  // inserted component has been removed and the document is empty again,
+  // this flips back to false and both themes become selectable again.
+  const [hasAnyComponent, setHasAnyComponent] = useState(false);
 
   // ── Reliable "which container am I inserting into" tracking ──────────────
   // Word Online does not reliably preserve/restore the document selection
@@ -103,6 +113,7 @@ export default function App() {
     COMPONENT_CONFIG,
   } = pageConfig;
 
+  // Runs once: create a stable document id if this doc doesn't have one yet.
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
     if (!docId) {
@@ -110,6 +121,20 @@ export default function App() {
       Office?.context?.document?.settings.set("appDocId", docId);
       Office?.context?.document?.settings.saveAsync();
     }
+  }, []);
+
+  // Runs every time the selected theme changes: keep it persisted.
+  React.useEffect(() => {
+    Office?.context?.document?.settings.set("theme", currentPage);
+    Office?.context?.document?.settings.saveAsync();
+  }, [currentPage]);
+
+  // On load, check whether the document already contains any of our
+  // components so the Filter dropdown starts out correctly locked (or
+  // unlocked) instead of always defaulting to "both themes selectable".
+  React.useEffect(() => {
+    refreshThemeLockState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Keep activeContainerIdRef / activeComponentIdRef in sync whenever the
@@ -146,6 +171,12 @@ export default function App() {
       } catch (err) {
         // Non-fatal — selection tracking is best-effort.
       }
+
+      // Best-effort: also refresh the theme-lock state whenever the user
+      // clicks around the document. This is what picks up manual deletions
+      // (which don't go through our insert code) so the Filter dropdown
+      // re-enables once the document is empty of our components again.
+      refreshThemeLockState();
     };
 
     if (Office?.context?.document?.addHandlerAsync) {
@@ -165,6 +196,53 @@ export default function App() {
       }
     };
   }, []);
+
+  // Scans the whole document for any of our components (any content
+  // control tagged with our schema) and figures out which theme they
+  // belong to. If we find at least one, we lock the Filter dropdown to
+  // that theme (disabling the other option) and make sure `currentPage`
+  // matches it — this also covers the case where the document already had
+  // content when the add-in was (re)loaded. If none are found, the
+  // document is effectively empty of our components and both themes
+  // become selectable again.
+  const refreshThemeLockState = async () => {
+    try {
+      await Word.run(async (context) => {
+        const contentControls = context.document.body.contentControls;
+        contentControls.load("items/tag");
+        await context.sync();
+
+        let foundThemeId = null;
+        for (const cc of contentControls.items) {
+          const meta = parseContentControlTag(cc.tag);
+          if (meta?.schema === "openstax-biology-chapter-formatter" && meta?.pageTypeFilter) {
+            const resolvedPage =
+              PAGE_TYPE[meta.pageTypeFilter] ||
+              Object.values(PAGE_TYPE).find((p) => p.id === meta.pageTypeFilter);
+            if (resolvedPage) {
+              foundThemeId = resolvedPage.id;
+              break;
+            }
+          }
+        }
+
+        if (foundThemeId) {
+          setHasAnyComponent(true);
+          setcurrentPage((prev) => {
+            const prevResolved =
+              PAGE_TYPE[prev] ||
+              Object.values(PAGE_TYPE).find((p) => p.id === prev) ||
+              PAGE_TYPE[DEFAULT_PAGE];
+            return prevResolved.id === foundThemeId ? prev : foundThemeId;
+          });
+        } else {
+          setHasAnyComponent(false);
+        }
+      });
+    } catch (err) {
+      // Non-fatal — this is a best-effort UI lock, not core functionality.
+    }
+  };
 
   const log = (msg) =>
     setDebugInfo(
@@ -217,6 +295,7 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -273,6 +352,7 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -323,6 +403,7 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -614,6 +695,7 @@ export default function App() {
       setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
     } finally {
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -699,9 +781,14 @@ export default function App() {
                 className="layoutctl-select"
                 value={currentPage}
                 onChange={(e) => setcurrentPage(e.target.value)}
+                title={hasAnyComponent ? "Remove all components to switch themes" : undefined}
               >
                 {Object.values(PAGE_TYPE).map((page) => (
-                  <option key={page.id} value={page.id}>
+                  <option
+                    key={page.id}
+                    value={page.id}
+                    disabled={hasAnyComponent && page.id !== pageConfig.id}
+                  >
                     {page.name}
                   </option>
                 ))}
