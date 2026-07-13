@@ -2,9 +2,9 @@ export const OPENER_COMPONENTS = [
   {
     id: "chapter-number",
     label: "Chapter Number",
-    preview: "Chapter 1",
+    preview: "CHAPTER 01",
     category: "header",
-    placeholder: "Chapter 1",
+    placeholder: "CHAPTER 01",
   },
   {
     id: "chapter-title",
@@ -226,8 +226,8 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "Chapter 1",
   },
   {
-    id: "chapter-title",
-    label: "Chapter Title",
+    id: "lesson-title",
+    label: "Lesson Title",
     preview: "An overview of Marketing",
     category: "header",
     placeholder: "An overview of Marketing",
@@ -235,9 +235,9 @@ export const NON_OPENER_COMPONENTS = [
   {
     id: "learning-objectives",
     label: "learning objectives",
-    preview: "Learning Outcomes",
+    preview: "Learning Objectives",
     category: "header",
-    placeholder: "Learning Outcomes",
+    placeholder: "Learning Objectives",
   },
   {
     id: "paragraph-text",
@@ -247,37 +247,36 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "",
   },
   {
-    id: "figure-caption",
-    label: "Caption",
-    preview: "caption",
-    previewPrefix: "1-1",
-    category: "text-media",
-    placeholder: "1-1",
+    id: "sub-titles-list",
+    label: "Sub Titles List",
+    preview: "1.1 Define the term marketing",
+    category: "header",
+    placeholder: "",
   },
   {
-    id: "lesson-title",
-    label: "Lesson Title",
+    id: "section-title",
+    label: "Section Title",
     preview: "1-1 What is Marketing",
     category: "header",
     placeholder: "1-1 What is Marketing",
   },
   {
-    id: "lesson-overview",
-    label: "Lesson overview",
+    id: "sub-section-title",
+    label: "Sub Section Title",
     preview: "1-1 Define the term marketing",
     category: "header",
     placeholder: "1-1 Define the term marketing",
   },
   {
-    id: "section-title",
-    label: "Section Title",
+    id: "green-sub-section-title",
+    label: "Green Sub Section Title",
     preview: "1-2a Production Orientation",
     category: "header",
     placeholder: "1-2a Production Orientation",
   },
   {
-    id: "sub-section-title",
-    label: "Sub Section Title",
+    id: "sub-title",
+    label: "Sub Title",
     preview: "Customer Value",
     category: "header",
     placeholder: "Customer Value",
@@ -288,7 +287,7 @@ export const NON_OPENER_COMPONENTS = [
     preview: null,
     category: "text-media",
     placeholder: null,
-  }
+  },
 ];
 
 export const NON_OPENER_STYLES = {
@@ -308,7 +307,7 @@ export const NON_OPENER_STYLES = {
     backgroundColor: "#CA5027",
   },
 
-  chapterTitle: {
+  lessonTitle: {
     font: "Arial",
     size: 44,
     color: "#214880",
@@ -329,7 +328,7 @@ export const NON_OPENER_STYLES = {
     bold: false,
   },
 
-  caption: {
+  subTitlesList: {
     text: {
       font: "Arial",
       size: 11,
@@ -344,28 +343,36 @@ export const NON_OPENER_STYLES = {
     },
   },
 
-  lessonTitle: {
-    font: "Arial",
-    size: 18,
-    color: "#214880",
-    bold: true,
+  sectionTitle: {
+    text: {
+      font: "Arial",
+      size: 17,
+      color: "#214880",
+      bold: true,
+    },
+    number: {
+      font: "Arial",
+      size: 18,
+      color: "#214880",
+      bold: true,
+    },
   },
 
-  lessonOverview: {
+  subSectionTitle: {
     font: "Arial",
     size: 10,
     color: "#000000",
     bold: true,
   },
 
-  sectionTitle: {
+  greenSubSectionTitle: {
     font: "Arial",
     size: 15,
     color: "#00854A",
     bold: true,
   },
 
-  subSectionTitle: {
+  subTitle: {
     font: "Arial",
     size: 12,
     color: "#CA5027",
@@ -382,8 +389,8 @@ export const NON_OPENER_COMPONENT_CONFIG = {
     style: NON_OPENER_STYLES.chapterHeading,
   },
 
-  "chapter-title": {
-    style: NON_OPENER_STYLES.chapterTitle,
+  "lesson-title": {
+    style: NON_OPENER_STYLES.lessonTitle,
   },
 
   "learning-objectives": {
@@ -394,29 +401,35 @@ export const NON_OPENER_COMPONENT_CONFIG = {
     style: NON_OPENER_STYLES.paragraphText,
   },
 
-  "figure-caption": {
+  "sub-titles-list": {
     dual: {
       prefix: "1.1",
       text: " Define the term marketing",
-      prefixStyle: NON_OPENER_STYLES.caption.number,
-      textStyle: NON_OPENER_STYLES.caption.text,
+      prefixStyle: NON_OPENER_STYLES.subTitlesList.number,
+      textStyle: NON_OPENER_STYLES.subTitlesList.text,
     }
   },
 
-  "lesson-title": {
-    style: NON_OPENER_STYLES.lessonTitle,
-  },
-
-  "lesson-overview": {
-    style: NON_OPENER_STYLES.lessonOverview,
-  },
-
   "section-title": {
-    style: NON_OPENER_STYLES.sectionTitle,
+    dual: {
+      prefix: "1.1",
+      text: " What is Marketing",
+      prefixStyle: NON_OPENER_STYLES.sectionTitle.number,
+      textStyle: NON_OPENER_STYLES.sectionTitle.text,
+    }
+    //style: NON_OPENER_STYLES.sectionTitle,
   },
 
   "sub-section-title": {
     style: NON_OPENER_STYLES.subSectionTitle,
+  },
+
+  "green-sub-section-title": {
+    style: NON_OPENER_STYLES.greenSubSectionTitle,
+  },
+
+  "sub-title": {
+    style: NON_OPENER_STYLES.subTitle,
   },
 };
 
