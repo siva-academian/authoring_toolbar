@@ -4,13 +4,13 @@
   <Version>1.0.0.0</Version>
   <ProviderName>PRJS</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Authoring Toolbar Dev"/>
+  <DisplayName DefaultValue="Authoring Toolbar"/>
   <Description DefaultValue="A template to get started."/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://www.contoso.com/help"/>
   <AppDomains>
-    <AppDomain>https://prjx.academian.com/dev</AppDomain>
+    <AppDomain>https://prjx.academian.com/qa</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Document"/>
