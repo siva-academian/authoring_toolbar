@@ -214,10 +214,16 @@ export default function App() {
         let foundThemeId = null;
         for (const cc of contentControls.items) {
           const meta = parseContentControlTag(cc.tag);
-          if (meta?.schema === "openstax-biology-chapter-formatter" && meta?.pageTypeFilter) {
+          // Only the opener/non-opener *container* content controls carry a
+          // reliable "theme" (the page/theme that was active when that
+          // container was created) — that's what we key off of, rather than
+          // pageTypeFilter (which, for a container, is just its own
+          // containerType string like "opener"/"non-opener" and never
+          // matches a PAGE_TYPE key or id).
+          if (meta?.container && meta?.theme) {
             const resolvedPage =
-              PAGE_TYPE[meta.pageTypeFilter] ||
-              Object.values(PAGE_TYPE).find((p) => p.id === meta.pageTypeFilter);
+              PAGE_TYPE[meta.theme] ||
+              Object.values(PAGE_TYPE).find((p) => p.id === meta.theme);
             if (resolvedPage) {
               foundThemeId = resolvedPage.id;
               break;
@@ -256,6 +262,7 @@ export default function App() {
   };
 
   const handleCardClick = async (id,
+    currentPage = "",
     components = COMPONENTS,
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
@@ -281,7 +288,8 @@ export default function App() {
         styles,
         buildLayoutContext(),
         activeContainerIdRef,
-        activeComponentIdRef
+        activeComponentIdRef,
+        currentPage
       );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
@@ -566,7 +574,7 @@ export default function App() {
     }
   };
 
-  const insertInsideNewContainer = async (containerType) => {
+  const insertInsideNewContainer = async (containerType, currentPage) => {
     try {
       setShowContainerModal(false);
       log(`[container-modal] click "${containerType}", pendingComponent="${pendingComponent}"`);
@@ -589,7 +597,8 @@ export default function App() {
           buildLayoutContext(),
           activeContainerIdRef,
           activeComponentIdRef,
-          log
+          log,
+          currentPage
         );
         setImageFile(null);
         setImagePreview(null);
@@ -611,7 +620,9 @@ export default function App() {
           COMPONENTS,
           buildLayoutContext(),
           activeContainerIdRef,
-          activeComponentIdRef
+          activeComponentIdRef,
+          log,
+          currentPage
         );
         setLinkImageFile(null);
         setLinkImagePreview(null);
@@ -628,7 +639,8 @@ export default function App() {
           STYLES,
           activeContainerIdRef,
           activeComponentIdRef,
-          log
+          log,
+          currentPage
         );
       } else {
         await insertComponent(
@@ -642,7 +654,8 @@ export default function App() {
           {},
           containerType,
           activeContainerIdRef,
-          activeComponentIdRef
+          activeComponentIdRef,
+          currentPage
         );
       }
 
@@ -709,6 +722,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "opener",
+                  currentPage,
                   LAYOUT_COMPONENTS,
                   {
                     opener: {
@@ -725,6 +739,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "non-opener",
+                  currentPage,
                   LAYOUT_COMPONENTS,
                   {
                     "non-opener": {
@@ -1012,12 +1027,12 @@ export default function App() {
                 This component must be placed inside an Opener or Non Opener.
               </p>
               <button
-                onClick={() => insertInsideNewContainer("opener")}
+                onClick={() => insertInsideNewContainer("opener", currentPage)}
               >
                 Opener
               </button>
               <button
-                onClick={() => insertInsideNewContainer("non-opener")}
+                onClick={() => insertInsideNewContainer("non-opener", currentPage)}
               >
                 Non Opener
               </button>
@@ -1249,7 +1264,7 @@ function wrapInContentControl(paragraph, meta) {
 
 /**
  * Builds the metadata object embedded in every content-control tag.*/
-function buildMeta(id, COMPONENTS, layoutContext) {
+function buildMeta(id, COMPONENTS, layoutContext, currentPage = "") {
   const comp = COMPONENTS.find((c) => c.id === id);
 
   return {
@@ -1261,6 +1276,7 @@ function buildMeta(id, COMPONENTS, layoutContext) {
     schema: "openstax-biology-chapter-formatter",
     placeholder: comp?.placeholder ?? "",
     pageTypeFilter: layoutContext,
+    theme: currentPage,
     container: id === "opener" ||
       id === "non-opener" ||
       comp?.container === true
@@ -1274,11 +1290,12 @@ async function insertComponent(
   STYLES,
   layoutContext,
   activeContainerIdRef,
-  activeComponentIdRef
+  activeComponentIdRef,
+  currentPage
 ) {
   return Word.run(async (context) => {
     const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef);
-    const meta = buildMeta(id, COMPONENTS, layoutContext);
+    const meta = buildMeta(id, COMPONENTS, layoutContext, currentPage);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
     const cc = await insertComponentAtTarget(target, context, id, meta, config, STYLES);
@@ -1323,14 +1340,15 @@ async function insertComponentInsideNewContainer(
   childStyles,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentPage
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType, currentPage);
     log(`[nested-insert] inserting container "${containerType}"`);
 
     const containerCc = await insertStyledComponent(
@@ -1359,7 +1377,7 @@ async function insertComponentInsideNewContainer(
     //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
     const childTarget = { mode: "container", container: containerCc };
-    const childMeta = buildMeta(childId, childComponents, containerType);
+    const childMeta = buildMeta(childId, childComponents, containerType, currentPage);
     const childConfig = childComponentConfig[childId] || { style: {} };
 
     log(`[nested-insert] inserting child "${childId}"`);
@@ -1529,12 +1547,13 @@ async function insertContainerThenImage(
   layoutContext,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentPage
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType, currentPage);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1553,7 +1572,7 @@ async function insertContainerThenImage(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("image", COMPONENTS, containerType);
+    const meta = buildMeta("image", COMPONENTS, containerType, currentPage);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertImageAtTarget(childTarget, context, base64, meta);
 
@@ -1709,12 +1728,13 @@ async function insertContainerThenLinkToLearning(
   layoutContext,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentPage
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType, currentPage);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1733,7 +1753,7 @@ async function insertContainerThenLinkToLearning(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("logo-with-text", COMPONENTS, containerType);
+    const meta = buildMeta("logo-with-text", COMPONENTS, containerType, currentPage);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertLinkToLearningAtTarget(childTarget, context, base64, mimeType, meta);
 
