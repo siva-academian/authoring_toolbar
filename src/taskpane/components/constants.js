@@ -22,7 +22,7 @@ export const THEME1_COMPONENTS = [
   },
   {
     id: "lesson-overview",
-    label: "Lesson overview",
+    label: "Lesson Overview",
     preview: "1.1 Topic Title",
     category: "header",
     placeholder: "1.1 Topic Title",
@@ -36,7 +36,7 @@ export const THEME1_COMPONENTS = [
   },
   {
     id: "learning-objectives",
-    label: "learning objectives",
+    label: "Learning Objectives",
     preview: "LEARNING OBJECTIVES",
     category: "header",
     placeholder: "LEARNING OBJECTIVES",
@@ -234,7 +234,7 @@ export const THEME2_COMPONENTS = [
   },
   {
     id: "learning-objectives",
-    label: "learning objectives",
+    label: "Learning Objectives",
     preview: "Learning Outcomes",
     category: "header",
     placeholder: "Learning Outcomes",
@@ -249,7 +249,7 @@ export const THEME2_COMPONENTS = [
   {
     id: "figure-caption",
     label: "Caption",
-    preview: "caption",
+    preview: " Define the term marketing",
     previewPrefix: "1-1",
     category: "text-media",
     placeholder: "1-1",
@@ -263,7 +263,7 @@ export const THEME2_COMPONENTS = [
   },
   {
     id: "lesson-overview",
-    label: "Lesson overview",
+    label: "Lesson Overview",
     preview: "1-1 Define the term marketing",
     category: "header",
     placeholder: "1-1 Define the term marketing",
