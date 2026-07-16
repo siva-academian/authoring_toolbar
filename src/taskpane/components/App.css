@@ -870,87 +870,87 @@ layoutctl-panel {
    stack in case those fonts aren't installed/loaded wherever the
    task pane renders.
 =========================================================== */
-/* ─── Theme 1 ("first-theme") ───────────────────────────────────────────── */
-.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-number"] {
+/* ─── Theme 1 ("theme1") ───────────────────────────────────────────── */
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-number"] {
   color: #0074BC;
   font-weight: 400;
   font-size: 12px;
   text-transform: uppercase;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-title"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-title"] {
   color: #000000;
   font-weight: 400;
   font-size: 13px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-overview"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-overview"] {
   color: #0074BC;
   font-weight: 700;
   font-size: 11px;
   text-transform: uppercase;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="lesson-overview"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="lesson-overview"] {
   color: #000000;
   font-weight: 700;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="lesson-title"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="lesson-title"] {
   color: #0074BC;
   font-weight: 400;
   font-size: 12px;
   text-transform: uppercase;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="learning-objectives"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="learning-objectives"] {
   color: #0074BC;
   font-weight: 700;
   font-size: 11px;
   text-transform: uppercase;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="section-title"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="section-title"] {
   color: #0074BC;
   font-weight: 400;
   font-size: 12px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="sub-section-title"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="sub-section-title"] {
   color: #0074BC;
   font-weight: 700;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="paragraph-text"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="paragraph-text"] {
   color: #000000;
   font-weight: 400;
   font-size: 11px;
   font-family: "IBM Flex Sans Regular", Arial, Helvetica, sans-serif;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="bullet-list"] {
+.component-card-preview[data-theme="theme1"][data-comp-id="bullet-list"] {
   color: #000000;
   font-weight: 400;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="figure-caption"] .preview-figure-label {
+.component-card-preview[data-theme="theme1"][data-comp-id="figure-caption"] .preview-figure-label {
   color: #C31427;
   font-weight: 700;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="first-theme"][data-comp-id="figure-caption"] .preview-figure-text {
+.component-card-preview[data-theme="theme1"][data-comp-id="figure-caption"] .preview-figure-text {
   color: #000000;
   font-weight: 400;
   font-style: normal;
   font-size: 11px;
 }
 
-/* ─── Theme 2 ("second-theme") ──────────────────────────────────────────── */
-.component-card-preview[data-theme="second-theme"][data-comp-id="part-number"] {
+/* ─── Theme 2 ("theme2") ──────────────────────────────────────────── */
+.component-card-preview[data-theme="theme2"][data-comp-id="part-number"] {
   display: inline-block;
   max-width: 100%;
   color: #FFFFFF;
@@ -961,7 +961,7 @@ layoutctl-panel {
   border-radius: 4px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-number"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-number"] {
   display: inline-block;
   max-width: 100%;
   color: #FFFFFF;
@@ -972,45 +972,45 @@ layoutctl-panel {
   border-radius: 4px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-title"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-title"] {
   color: #214880;
   font-weight: 400;
   font-size: 15px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-overview"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-overview"] {
   color: #CA5027;
   font-weight: 700;
   font-size: 12px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="learning-objectives"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="learning-objectives"] {
   color: #CA5027;
   font-weight: 700;
   font-size: 12px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="paragraph-text"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="paragraph-text"] {
   color: #000000;
   font-weight: 400;
   font-size: 11px;
   font-family: "Neue Kabel Regular", Arial, Helvetica, sans-serif;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="figure-caption"] .preview-figure-label {
+.component-card-preview[data-theme="theme2"][data-comp-id="figure-caption"] .preview-figure-label {
   color: #CA5027;
   font-weight: 700;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="figure-caption"] .preview-figure-text {
+.component-card-preview[data-theme="theme2"][data-comp-id="figure-caption"] .preview-figure-text {
   color: #000000;
   font-weight: 400;
   font-style: normal;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-title"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-title"] {
   color: #214880;
   font-weight: 700;
   font-size: 13px;
@@ -1018,26 +1018,26 @@ layoutctl-panel {
 
 /* Lesson Overview is now a dual prefix/text component in Theme 2 (see
    constants.js), reusing the same two-span markup as Figure Caption. */
-.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-overview"] .preview-figure-label {
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-overview"] .preview-figure-label {
   color: #CA5027;
   font-weight: 700;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-overview"] .preview-figure-text {
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-overview"] .preview-figure-text {
   color: #000000;
   font-weight: 400;
   font-style: normal;
   font-size: 11px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="section-title"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="section-title"] {
   color: "#000000";
   font-weight: 400;
   font-size: 10px;
 }
 
-.component-card-preview[data-theme="second-theme"][data-comp-id="sub-section-title"] {
+.component-card-preview[data-theme="theme2"][data-comp-id="sub-section-title"] {
   color: #00854A;
   font-weight: 700;
   font-size: 12px;

@@ -386,15 +386,15 @@ export const THEME2_COMPONENT_CONFIG = {
 };
 
 export const PAGE_TYPE = {
-  firstTheme: {
-    id: "first-theme",
+  theme1: {
+    id: "theme1",
     name: "Theme 1",
     COMPONENTS: THEME1_COMPONENTS,
     STYLES: THEME1_STYLES,
     COMPONENT_CONFIG: THEME1_COMPONENT_CONFIG,
   },
-  secondTheme: {
-    id: "second-theme",
+  theme2: {
+    id: "theme2",
     name: "Theme 2",
     COMPONENTS: THEME2_COMPONENTS,
     STYLES: THEME2_STYLES,
@@ -402,7 +402,7 @@ export const PAGE_TYPE = {
   },
 };
 
-export const DEFAULT_PAGE = "firstTheme";
+export const DEFAULT_PAGE = "theme1";
 
 export const LAYOUT_COMPONENTS = [
   {
