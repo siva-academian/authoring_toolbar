@@ -959,6 +959,7 @@ layoutctl-panel {
   background: #CA5027;
   padding: 2px 8px;
   border-radius: 4px;
+  width: 100%;
 }
 
 .component-card-preview[data-theme="theme2"][data-comp-id="chapter-title"] {
