@@ -385,7 +385,7 @@ export const THEME2_COMPONENT_CONFIG = {
   },
 };
 
-export const PAGE_TYPE = {
+export const THEME_TYPE = {
   theme1: {
     id: "theme1",
     name: "Theme 1",
@@ -402,7 +402,7 @@ export const PAGE_TYPE = {
   },
 };
 
-export const DEFAULT_PAGE = "theme1";
+export const DEFAULT_THEME = "theme1";
 
 export const LAYOUT_COMPONENTS = [
   {
