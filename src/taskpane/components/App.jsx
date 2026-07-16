@@ -15,7 +15,7 @@ const InstrcutionIcon = () => (
   </svg>
 );
 
-const renderComponentCard = ({ comp, loading, handleCardClick }) => {
+const renderComponentCard = ({ comp, loading, handleCardClick, themeId }) => {
   if (!comp || comp.id === "image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
 
@@ -36,12 +36,22 @@ const renderComponentCard = ({ comp, loading, handleCardClick }) => {
       {comp.preview && (
         <div className="component-card-preview-box">
           {comp.previewPrefix ? (
-            <span className="component-card-preview">
+            <span
+              className="component-card-preview"
+              data-comp-id={comp.id}
+              data-theme={themeId}
+            >
               <span className="preview-figure-label">{comp.previewPrefix} </span>
               <span className="preview-figure-text">{comp.preview}</span>
             </span>
           ) : (
-            <span className="component-card-preview">{comp.preview}</span>
+            <span
+              className="component-card-preview"
+              data-comp-id={comp.id}
+              data-theme={themeId}
+            >
+              {comp.preview}
+            </span>
           )}
         </div>
       )}
@@ -833,7 +843,7 @@ export default function App() {
               <h2 className="section-heading">Header</h2>
               <div className="card-grid">
                 {headerComponents.map((comp) =>
-                  renderComponentCard({ comp, loading, handleCardClick })
+                  renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
               </div>
             </section>
@@ -842,7 +852,7 @@ export default function App() {
               <h2 className="section-heading">Text</h2>
               <div className="card-grid">
                 {textMediaComponents.map((comp) =>
-                  renderComponentCard({ comp, loading, handleCardClick })
+                  renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
               </div>
             </section>

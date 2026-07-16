@@ -35,24 +35,11 @@ export const THEME1_COMPONENTS = [
     placeholder: "1.1 Themes and Concepts of Biology",
   },
   {
-    id: "learning-objectives",
-    label: "Learning Objectives",
-    preview: "LEARNING OBJECTIVES",
-    category: "header",
-    placeholder: "LEARNING OBJECTIVES",
-  },
-  {
     id: "section-title",
     label: "Section Title",
     preview: "Properties of Life",
     category: "header",
     placeholder: "Properties of Life",
-  }, {
-    id: "sub-section-title",
-    label: "Sub Section Title",
-    preview: "order",
-    category: "header",
-    placeholder: "order",
   },
   {
     id: "paragraph-text",
@@ -124,26 +111,16 @@ export const THEME1_STYLES = {
     color: "#0074BC",
     bold: false,
   },
-  learningObjectives: {
-    font: "Arial",
-    size: 9,
-    color: "#0074BC",
-    bold: true,
-  },
   sectionTitle: {
     font: "Arial",
     size: 11,
     color: "#0074BC",
     bold: false,
   },
-  subSectionTitle: {
-    font: "Arial",
-    size: 9,
-    color: "#0074BC",
-    bold: true,
-  },
   paragrapghText: {
-    font: "Arial",
+    // Updated per style table: font family changed from "Arial" to
+    // "IBM Flex Sans Regular" for Theme 1 body paragraphs.
+    font: "IBM Flex Sans Regular,Arial",
     size: 9,
     color: "#000000",
     bold: false,
@@ -187,18 +164,11 @@ export const THEME1_COMPONENT_CONFIG = {
     style: THEME1_STYLES.lessonTitle,
     allCaps: true,
   },
-  "learning-objectives": {
-    style: THEME1_STYLES.learningObjectives,
-    allCaps: true,
-  },
   "paragraph-text": {
     style: THEME1_STYLES.paragrapghText,
   },
   "section-title": {
     style: THEME1_STYLES.sectionTitle,
-  },
-  "sub-section-title": {
-    style: THEME1_STYLES.subSectionTitle,
   },
   "figure-caption": {
     dual: {
@@ -228,30 +198,31 @@ export const THEME2_COMPONENTS = [
   {
     id: "chapter-title",
     label: "Chapter Title",
-    preview: "An overview of Marketing",
+    // Updated per style table: "An overview of Marketing" -> "An Overview of Marketing"
+    preview: "An Overview of Marketing",
     category: "header",
-    placeholder: "An overview of Marketing",
+    placeholder: "An Overview of Marketing",
   },
   {
-    id: "learning-objectives",
-    label: "Learning Objectives",
+    // New per style table: Theme 2 now has its own "Chapter Overview"
+    // component alongside the existing "Learning Objectives" one. Added
+    // here rather than replacing "learning-objectives" below, since the
+    // table didn't say to remove or rename anything.
+    id: "chapter-overview",
+    label: "Chapter Overview",
     preview: "Learning Outcomes",
     category: "header",
     placeholder: "Learning Outcomes",
   },
   {
-    id: "paragraph-text",
-    label: "Paragraph Text",
-    preview: "Start typing your text here...",
-    category: "text-media",
-    placeholder: "",
-  },
-  {
-    id: "figure-caption",
-    label: "Caption",
+    // Updated per style table: Theme 2's Lesson Overview is now a dual
+    // (prefix + text) component, matching Figure Caption's pattern, so the
+    // "1-1" prefix can be styled separately from the rest of the text.
+    id: "lesson-overview",
+    label: "Lesson Overview",
     preview: " Define the term marketing",
     previewPrefix: "1-1",
-    category: "text-media",
+    category: "header",
     placeholder: "1-1",
   },
   {
@@ -262,25 +233,25 @@ export const THEME2_COMPONENTS = [
     placeholder: "1-1 What is Marketing",
   },
   {
-    id: "lesson-overview",
-    label: "Lesson Overview",
-    preview: "1-1 Define the term marketing",
-    category: "header",
-    placeholder: "1-1 Define the term marketing",
-  },
-  {
     id: "section-title",
     label: "Section Title",
+    preview: "1-1 Define the term marketing ",
+    category: "header",
+    placeholder: "1-1 Define the term marketing ",
+  },
+  {
+    id: "sub-section-title",
+    label: "Sub Section Title",
     preview: "1-2a Production Orientation",
     category: "header",
     placeholder: "1-2a Production Orientation",
   },
   {
-    id: "sub-section-title",
-    label: "Sub Section Title",
-    preview: "Customer Value",
-    category: "header",
-    placeholder: "Customer Value",
+    id: "paragraph-text",
+    label: "Paragraph Text",
+    preview: "Start typing your text here...",
+    category: "text-media",
+    placeholder: "",
   },
   {
     id: "image",
@@ -315,7 +286,8 @@ export const THEME2_STYLES = {
     bold: false,
   },
 
-  learningObjectives: {
+  // New per style table: style for the new "chapter-overview" component.
+  chapterOverview: {
     font: "Arial",
     size: 15,
     color: "#CA5027",
@@ -323,13 +295,24 @@ export const THEME2_STYLES = {
   },
 
   paragraphText: {
-    font: "Arial",
+    // Updated per style table: font family changed from "Arial" to
+    // "Neue Kabel Regular" for Theme 2 body paragraphs.
+    font: "Neue Kabel Regular, Arial",
     size: 10,
     color: "#000000",
     bold: false,
   },
 
-  caption: {
+  lessonTitle: {
+    font: "Arial",
+    size: 18,
+    color: "#214880",
+    bold: true,
+  },
+
+  // Updated per style table: now a dual (prefix + text) style, matching
+  // `caption` above, instead of a single flat style.
+  lessonOverview: {
     text: {
       font: "Arial",
       size: 11,
@@ -344,32 +327,18 @@ export const THEME2_STYLES = {
     },
   },
 
-  lessonTitle: {
-    font: "Arial",
-    size: 18,
-    color: "#214880",
-    bold: true,
-  },
-
-  lessonOverview: {
+  sectionTitle: {
     font: "Arial",
     size: 10,
     color: "#000000",
-    bold: true,
-  },
-
-  sectionTitle: {
-    font: "Arial",
-    size: 15,
-    color: "#00854A",
-    bold: true,
+    bold: false,
   },
 
   subSectionTitle: {
     font: "Arial",
-    size: 12,
-    color: "#CA5027",
-    bold: false,
+    size: 15,
+    color: "#00854A",
+    bold: true,
   },
 };
 
@@ -386,21 +355,12 @@ export const THEME2_COMPONENT_CONFIG = {
     style: THEME2_STYLES.chapterTitle,
   },
 
-  "learning-objectives": {
-    style: THEME2_STYLES.learningObjectives,
+  "chapter-overview": {
+    style: THEME2_STYLES.chapterOverview,
   },
 
   "paragraph-text": {
     style: THEME2_STYLES.paragraphText,
-  },
-
-  "figure-caption": {
-    dual: {
-      prefix: "1.1",
-      text: " Define the term marketing",
-      prefixStyle: THEME2_STYLES.caption.number,
-      textStyle: THEME2_STYLES.caption.text,
-    }
   },
 
   "lesson-title": {
@@ -408,7 +368,12 @@ export const THEME2_COMPONENT_CONFIG = {
   },
 
   "lesson-overview": {
-    style: THEME2_STYLES.lessonOverview,
+    dual: {
+      prefix: "1-1",
+      text: " Define the term marketing",
+      prefixStyle: THEME2_STYLES.lessonOverview.number,
+      textStyle: THEME2_STYLES.lessonOverview.text,
+    }
   },
 
   "section-title": {
