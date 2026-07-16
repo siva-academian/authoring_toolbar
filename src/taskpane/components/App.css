@@ -142,10 +142,10 @@ button:disabled {
 
 .ai-buttons {
   color: #297EFF;
-  font-size: 11px;
+  font-size: 12px;
   border: none;
   font-weight: 600;
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
   border: 1px solid #297EFF;
@@ -466,23 +466,36 @@ layoutctl-panel {
 }
 
 /* ─── Card preview box ───────────────────────────────────────────────────── */
+.component-card-preview-box {
+  width: 100%;
+  max-width: 100%;
+}
+
 .component-card-preview {
   font-size: 11px;
   color: #000;
   line-height: 1.4;
   display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-figure-label {
   font-size: 11px;
   font-weight: 700;
   color: #c00000;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-figure-text {
   font-size: 11px;
   font-style: italic;
   color: #555;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .link-learning-panel {
@@ -816,4 +829,205 @@ layoutctl-panel {
 ::-webkit-scrollbar-thumb {
   background: #c0cdd2;
   border-radius: 4px;
+}
+
+/* ===========================================================
+   Per-component / per-theme preview styling
+   -----------------------------------------------------------
+   Mirrors each component's real Word style (font, color, weight,
+   background chip, dual prefix/text coloring) for the small card
+   preview, so it gives an accurate at-a-glance idea of how that
+   component will look once inserted — kept in sync with the style
+   table applied to constants.js.
+
+   Font sizes here are intentionally NOT 1:1 with the real point
+   sizes in constants.js (some headings are 22–44pt in the real
+   document) — they're compressed into an 11–15px range so a card
+   in a ~300px-wide task pane never overflows or breaks the
+   2-column grid, while still keeping the relative size hierarchy
+   (bigger real heading → slightly bigger preview) and the exact
+   color/weight/background, which is what makes each preview
+   visually distinguishable.
+
+   `.component-card-preview-box`/`.component-card-preview` already
+   wrap long text and grow in height automatically (see above), so
+   longer previews simply take more lines/height instead of
+   overflowing or clipping.
+
+   Custom font families (Theme 1's "IBM Flex Sans Regular", Theme
+   2's "Neue Kabel Regular") are applied with a sans-serif fallback
+   stack in case those fonts aren't installed/loaded wherever the
+   task pane renders.
+=========================================================== */
+/* ─── Theme 1 ("first-theme") ───────────────────────────────────────────── */
+.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-number"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-title"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="chapter-overview"] {
+  color: #0074BC;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="lesson-overview"] {
+  color: #000000;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="lesson-title"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="learning-objectives"] {
+  color: #0074BC;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="section-title"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="sub-section-title"] {
+  color: #0074BC;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="paragraph-text"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+  font-family: "IBM Flex Sans Regular", Arial, Helvetica, sans-serif;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="bullet-list"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="figure-caption"] .preview-figure-label {
+  color: #C31427;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="first-theme"][data-comp-id="figure-caption"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+/* ─── Theme 2 ("second-theme") ──────────────────────────────────────────── */
+.component-card-preview[data-theme="second-theme"][data-comp-id="part-number"] {
+  display: inline-block;
+  max-width: 100%;
+  color: #FFFFFF;
+  font-weight: 400;
+  font-size: 13px;
+  background: #CA5027;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-number"] {
+  display: inline-block;
+  max-width: 100%;
+  color: #FFFFFF;
+  font-weight: 400;
+  font-size: 14px;
+  background: #CA5027;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-title"] {
+  color: #214880;
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="chapter-overview"] {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="learning-objectives"] {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="paragraph-text"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+  font-family: "Neue Kabel Regular", Arial, Helvetica, sans-serif;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="figure-caption"] .preview-figure-label {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="figure-caption"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-title"] {
+  color: #214880;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Lesson Overview is now a dual prefix/text component in Theme 2 (see
+   constants.js), reusing the same two-span markup as Figure Caption. */
+.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-overview"] .preview-figure-label {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="lesson-overview"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="section-title"] {
+  color: "#000000";
+  font-weight: 400;
+  font-size: 10px;
+}
+
+.component-card-preview[data-theme="second-theme"][data-comp-id="sub-section-title"] {
+  color: #00854A;
+  font-weight: 700;
+  font-size: 12px;
 }
