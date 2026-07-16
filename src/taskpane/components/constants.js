@@ -466,7 +466,12 @@ export const THEME2_COMPONENT_CONFIG = {
   },
 
   "lesson-overview": {
-    style: THEME2_STYLES.lessonOverview,
+    dual: {
+      prefix: "1-1",
+      text: " Define the term marketing",
+      prefixStyle: THEME2_STYLES.lessonOverview.number,
+      textStyle: THEME2_STYLES.lessonOverview.text,
+    }
   },
 
   "section-title": {

@@ -727,7 +727,8 @@ layoutctl-panel {
   color: #fff;
 }
 
-.footer-btn--pdf.footer-btn--loading, .footer-btn--web.footer-btn--loading {
+.footer-btn--pdf.footer-btn--loading,
+.footer-btn--web.footer-btn--loading {
   border: 1px solid #c00000;
   color: #c00000;
   background: #fff;
@@ -747,7 +748,8 @@ layoutctl-panel {
   transform: scale(0.97);
 }
 
-.footer-btn--pdf.footer-btn--loading:hover, .footer-btn--web.footer-btn--loading:hover {
+.footer-btn--pdf.footer-btn--loading:hover,
+.footer-btn--web.footer-btn--loading:hover {
   background: #fff;
   color: #c00000;
 }
@@ -802,7 +804,8 @@ layoutctl-panel {
   z-index: 999999;
 }
 
-.container-modal, .image-modal {
+.container-modal,
+.image-modal {
   width: 320px;
   background: #fff;
   border-radius: 10px;
@@ -828,7 +831,8 @@ layoutctl-panel {
   background: #888;
 }
 
-.rows-input, .cols-input {
+.rows-input,
+.cols-input {
   width: 70px;
   margin-top: 4px;
   padding: 4px 6px;
