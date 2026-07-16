@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import "./App.css";
-import { PAGE_TYPE, DEFAULT_PAGE, LAYOUT_COMPONENTS } from "./constants";
+import { THEME_TYPE, DEFAULT_THEME, LAYOUT_COMPONENTS } from "./constants";
 
 const REACT_APP_TENANT_ID = process.env.REACT_APP_TENANT_ID;
 const REACT_APP_BACKEND_BASE_URL = process.env.REACT_APP_BACKEND_BASE_URL;
@@ -74,9 +74,8 @@ export default function App() {
   const [apiType, setApiType] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
-  // const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
-  const [currentPage, setcurrentPage] = useState(
-    () => Office?.context?.document?.settings.get("theme") || DEFAULT_PAGE
+  const [currentFilterTheme, setCurrentFilterTheme] = useState(
+    () => Office?.context?.document?.settings.get("theme") || DEFAULT_THEME
   );
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
@@ -114,9 +113,9 @@ export default function App() {
   const activeComponentIdRef = useRef(null);
 
   const pageConfig =
-    PAGE_TYPE[currentPage ?? DEFAULT_PAGE] ||
-    Object.values(PAGE_TYPE).find((page) => page.id === currentPage) ||
-    PAGE_TYPE[DEFAULT_PAGE];
+    THEME_TYPE[currentFilterTheme ?? DEFAULT_THEME] ||
+    Object.values(THEME_TYPE).find((page) => page.id === currentFilterTheme) ||
+    THEME_TYPE[DEFAULT_THEME];
   const {
     COMPONENTS,
     STYLES,
@@ -135,9 +134,9 @@ export default function App() {
 
   // Runs every time the selected theme changes: keep it persisted.
   React.useEffect(() => {
-    Office?.context?.document?.settings.set("theme", currentPage);
+    Office?.context?.document?.settings.set("theme", currentFilterTheme);
     Office?.context?.document?.settings.saveAsync();
-  }, [currentPage]);
+  }, [currentFilterTheme]);
 
   // On load, check whether the document already contains any of our
   // components so the Filter dropdown starts out correctly locked (or
@@ -210,7 +209,7 @@ export default function App() {
   // Scans the whole document for any of our components (any content
   // control tagged with our schema) and figures out which theme they
   // belong to. If we find at least one, we lock the Filter dropdown to
-  // that theme (disabling the other option) and make sure `currentPage`
+  // that theme (disabling the other option) and make sure `currentFilterTheme`
   // matches it — this also covers the case where the document already had
   // content when the add-in was (re)loaded. If none are found, the
   // document is effectively empty of our components and both themes
@@ -236,8 +235,8 @@ export default function App() {
           if (meta && !meta.container) {
             console.log("if")
             const resolvedPage =
-              PAGE_TYPE[theme] ||
-              Object.values(PAGE_TYPE).find((p) => p.id === theme);
+              THEME_TYPE[theme] ||
+              Object.values(THEME_TYPE).find((p) => p.id === theme);
             if (resolvedPage) {
               foundThemeId = resolvedPage.id;
               break;
@@ -249,11 +248,11 @@ export default function App() {
 
         if (foundThemeId) {
           setHasAnyComponent(true);
-          setcurrentPage((prev) => {
+          setCurrentFilterTheme((prev) => {
             const prevResolved =
-              PAGE_TYPE[prev] ||
-              Object.values(PAGE_TYPE).find((p) => p.id === prev) ||
-              PAGE_TYPE[DEFAULT_PAGE];
+              THEME_TYPE[prev] ||
+              Object.values(THEME_TYPE).find((p) => p.id === prev) ||
+              THEME_TYPE[DEFAULT_THEME];
             return prevResolved.id === foundThemeId ? prev : foundThemeId;
           });
         } else {
@@ -273,7 +272,7 @@ export default function App() {
     );
 
   const handleCardClick = async (id,
-    currentPage = "",
+    currentFilterTheme = "",
     components = COMPONENTS,
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
@@ -299,7 +298,7 @@ export default function App() {
         styles,
         activeContainerIdRef,
         activeComponentIdRef,
-        currentPage
+        currentFilterTheme
       );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
@@ -351,7 +350,7 @@ export default function App() {
         base64,
         linkImageFile.type,
         COMPONENTS,
-        currentPage,
+        currentFilterTheme,
         activeContainerIdRef,
         activeComponentIdRef
       );
@@ -404,7 +403,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, currentPage, activeContainerIdRef, activeComponentIdRef);
+      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -570,6 +569,7 @@ export default function App() {
       /* Status checking end */
 
       const webHeaders = new Headers();
+      const templateId = currentFilterTheme;
       webHeaders.append("Content-Type", "application/json");
       const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
       log(`Uploading to: ${webOutputUrl}`);
@@ -577,7 +577,7 @@ export default function App() {
         method: "POST",
         mode: "cors",
         headers: webHeaders,
-        body: JSON.stringify({ documentId: documentId, tenantId }),
+        body: JSON.stringify({ documentId: documentId, tenantId, templateId }),
         signal: AbortSignal.any([
           controller.signal,
           AbortSignal.timeout(30000)
@@ -617,7 +617,7 @@ export default function App() {
     }
   };
 
-  const insertInsideNewContainer = async (containerType, currentPage) => {
+  const insertInsideNewContainer = async (containerType, currentFilterTheme) => {
     try {
       setShowContainerModal(false);
       log(`[container-modal] click "${containerType}", pendingComponent="${pendingComponent}"`);
@@ -640,7 +640,7 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentPage
+          currentFilterTheme
         );
         setImageFile(null);
         setImagePreview(null);
@@ -663,7 +663,7 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentPage
+          currentFilterTheme
         );
         setLinkImageFile(null);
         setLinkImagePreview(null);
@@ -681,7 +681,7 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentPage
+          currentFilterTheme
         );
       } else {
         await insertComponent(
@@ -695,7 +695,7 @@ export default function App() {
           {},
           activeContainerIdRef,
           activeComponentIdRef,
-          currentPage
+          currentFilterTheme
         );
       }
 
@@ -762,7 +762,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "opener",
-                  currentPage,
+                  currentFilterTheme,
                   LAYOUT_COMPONENTS,
                   {
                     opener: {
@@ -779,7 +779,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "non-opener",
-                  currentPage,
+                  currentFilterTheme,
                   LAYOUT_COMPONENTS,
                   {
                     "non-opener": {
@@ -800,11 +800,11 @@ export default function App() {
               <select
                 id="layoutctl-filter-select"
                 className="layoutctl-select"
-                value={currentPage}
-                onChange={(e) => setcurrentPage(e.target.value)}
+                value={currentFilterTheme}
+                onChange={(e) => setCurrentFilterTheme(e.target.value)}
                 title={hasAnyComponent ? "Remove all components to switch themes" : undefined}
               >
-                {Object.values(PAGE_TYPE).map((page) => (
+                {Object.values(THEME_TYPE).map((page) => (
                   <option
                     key={page.id}
                     value={page.id}
@@ -1067,12 +1067,12 @@ export default function App() {
                 This component must be placed inside an Opener or Non Opener.
               </p>
               <button
-                onClick={() => insertInsideNewContainer("opener", currentPage)}
+                onClick={() => insertInsideNewContainer("opener", currentFilterTheme)}
               >
                 Opener
               </button>
               <button
-                onClick={() => insertInsideNewContainer("non-opener", currentPage)}
+                onClick={() => insertInsideNewContainer("non-opener", currentFilterTheme)}
               >
                 Non Opener
               </button>
@@ -1304,9 +1304,9 @@ function wrapInContentControl(paragraph, meta) {
 
 /**
  * Builds the metadata object embedded in every content-control tag.*/
-function buildMeta(id, COMPONENTS, currentPage = "") {
+function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   const comp = COMPONENTS.find((c) => c.id === id);
-  console.log({ comp }, { currentPage })
+  console.log({ comp }, { currentFilterTheme })
   return {
     type: id,
     label: comp?.label ?? id,
@@ -1315,7 +1315,7 @@ function buildMeta(id, COMPONENTS, currentPage = "") {
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
     placeholder: comp?.placeholder ?? "",
-    theme: currentPage,
+    theme: currentFilterTheme,
     container: id === "opener" ||
       id === "non-opener" ||
       comp?.container === true
@@ -1329,11 +1329,11 @@ async function insertComponent(
   STYLES,
   activeContainerIdRef,
   activeComponentIdRef,
-  currentPage
+  currentFilterTheme
 ) {
   return Word.run(async (context) => {
     const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef);
-    const meta = buildMeta(id, COMPONENTS, currentPage);
+    const meta = buildMeta(id, COMPONENTS, currentFilterTheme);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
     const cc = await insertComponentAtTarget(target, context, id, meta, config, STYLES);
@@ -1379,14 +1379,14 @@ async function insertComponentInsideNewContainer(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentPage
+  currentFilterTheme
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentPage);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
     log(`[nested-insert] inserting container "${containerType}"`);
 
     const containerCc = await insertStyledComponent(
@@ -1415,7 +1415,7 @@ async function insertComponentInsideNewContainer(
     //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
     const childTarget = { mode: "container", container: containerCc };
-    const childMeta = buildMeta(childId, childComponents, currentPage);
+    const childMeta = buildMeta(childId, childComponents, currentFilterTheme);
     const childConfig = childComponentConfig[childId] || { style: {} };
 
     log(`[nested-insert] inserting child "${childId}"`);
@@ -1556,9 +1556,9 @@ async function insertImageAtTarget(target, context, base64, meta) {
   return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, currentPage, activeContainerIdRef, activeComponentIdRef) {
+async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("image", COMPONENTS, currentPage);
+    const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
@@ -1585,12 +1585,12 @@ async function insertContainerThenImage(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentPage
+  currentFilterTheme
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentPage);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1609,7 +1609,7 @@ async function insertContainerThenImage(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("image", COMPONENTS, currentPage);
+    const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertImageAtTarget(childTarget, context, base64, meta);
 
@@ -1734,9 +1734,9 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
   return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentPage, activeContainerIdRef, activeComponentIdRef) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("logo-with-text", COMPONENTS, currentPage);
+    const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
@@ -1765,12 +1765,12 @@ async function insertContainerThenLinkToLearning(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentPage
+  currentFilterTheme
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentPage);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1789,7 +1789,7 @@ async function insertContainerThenLinkToLearning(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("logo-with-text", COMPONENTS, currentPage);
+    const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertLinkToLearningAtTarget(childTarget, context, base64, mimeType, meta);
 
