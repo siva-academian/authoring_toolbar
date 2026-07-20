@@ -714,6 +714,12 @@ layoutctl-panel {
   color: #fff;
 }
 
+.footer-btn--pdf.footer-btn--loading, .footer-btn--web.footer-btn--loading {
+  border: 1px solid #c00000;
+  color: #c00000;
+  background: #fff;
+}
+
 .footer-btn--web {
   background: #297EFF;
   color: #fff;
@@ -726,6 +732,11 @@ layoutctl-panel {
 
 .footer-btn:active:not(:disabled) {
   transform: scale(0.97);
+}
+
+.footer-btn--pdf.footer-btn--loading:hover, .footer-btn--web.footer-btn--loading:hover {
+  background: #fff;
+  color: #c00000;
 }
 
 /* ─── Debug panel ────────────────────────────────────────────────────────── */

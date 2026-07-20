@@ -68,6 +68,7 @@ export default function App() {
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const abortControllerRef = useRef(null);
 
   // ── Reliable "which container am I inserting into" tracking ──────────────
   // Word Online does not reliably preserve/restore the document selection
@@ -367,6 +368,16 @@ export default function App() {
   }
 
   const uploadDocument = async (clickType) => {
+    if (apiLoadingStatus) {
+      abortControllerRef.current?.abort();
+      setApiLoadingStatus(false);
+      setApiType(null);
+      return; // Prevent multiple simultaneous uploads
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setApiLoadingStatus(true);
     setApiType(clickType);
     try {
@@ -382,16 +393,26 @@ export default function App() {
       formData.append("file", file);
       const transformUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${docId}`;
       log(`Uploading to: ${transformUrl}`);
-      const response = await fetch(transformUrl, {
-        method: "POST",
-        body: formData,
-        signal: AbortSignal.timeout(30000)
-      }).catch((err) => {
+      let response;
+      try {
+        response = await fetch(transformUrl, {
+          method: "POST",
+          body: formData,
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(30000)
+          ])
+        });
+      } catch (err) {
+        if (err.name === "AbortError") {
+          log("extraction Upload cancelled.");
+          return;
+        }
         log(`Fetch error details: ${err.message}`);
         setApiLoadingStatus(false);
         setApiType(null);
         throw err;
-      });
+      };
       if (!response.ok) {
         log(`Upload HTTP error: ${response.status} ${response.statusText}`);
         return;
@@ -409,9 +430,15 @@ export default function App() {
 
       const pollStatus = async () => {
         while (true) {
+          if (controller.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
           const statusResponse = await fetch(statusUrl, {
             method: "GET",
-            signal: AbortSignal.timeout(30000)
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(30000)
+            ])
           });
 
           if (!statusResponse.ok) {
@@ -453,8 +480,15 @@ export default function App() {
         mode: "cors",
         headers: webHeaders,
         body: JSON.stringify({ documentId: documentId, tenantId }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(30000)
+        ])
       }).catch((err) => {
+        if (err.name === "AbortError") {
+          log("Upload cancelled.");
+          return;
+        }
         setApiLoadingStatus(false);
         setApiType(null);
         log(`Web fetch error: ${err.message}`);
@@ -806,18 +840,18 @@ export default function App() {
           <section className="component-section publish-panel">
             <div className="publish-actions">
               <button
-                className="footer-btn footer-btn--pdf"
+                className={`footer-btn footer-btn--pdf ${apiLoadingStatus && apiType === "PDF" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("PDF")}
-                disabled={apiType === "WEB" || apiLoadingStatus}
+              // disabled={apiType === "WEB" || apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
+                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Lesson PDF"}
               </button>
               <button
-                className="footer-btn footer-btn--web"
+                className={`footer-btn footer-btn--web ${apiLoadingStatus && apiType === "WEB" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("WEB")}
-                disabled={apiLoadingStatus}
+              // disabled={apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
+                {apiLoadingStatus && apiType === "WEB" ? "Cancel Lesson Generation.." : "Preview Lesson"}
               </button>
               <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
                 Export EPUB
