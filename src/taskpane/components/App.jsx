@@ -80,6 +80,9 @@ export default function App() {
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableRows, setTableRows] = useState("2");
+  const [tableCols, setTableCols] = useState("2");
   const abortControllerRef = useRef(null);
   // Whenever at least one of our components exists anywhere in the
   // document, the Filter dropdown locks to the theme those components
@@ -423,6 +426,39 @@ export default function App() {
     }
   };
 
+  const handleTableClick = () => {
+    setShowTableModal(true);
+    setStatus("");
+  };
+
+  const handleTableInsert = async () => {
+    const rows = parseInt(tableRows, 10);
+    const cols = parseInt(tableCols, 10);
+    if (!rows || rows < 1 || !cols || cols < 1) {
+      setStatus("✗ Please enter valid rows and columns.");
+      return;
+    }
+    setLoading("table");
+    setStatus("");
+    try {
+      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef);
+      setStatus("✓ Table inserted.");
+      setShowTableModal(false);
+    } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setShowTableModal(false);
+        setPendingComponent("table");
+        setShowContainerModal(true);
+        return;
+      }
+      setStatus(`✗ Error: ${err.message || "Table insert failed."}`);
+    } finally {
+      setLoading(null);
+      setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
+    }
+  };
+
   const DOCX_MIME =
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -669,6 +705,23 @@ export default function App() {
         setLinkImagePreview(null);
         if (linkFileInputRef.current) linkFileInputRef.current.value = "";
         setStatus("✓ Logo with Text inserted.");
+      } else if (pendingComponent === "table") {
+        // Same pattern: create the container first, then insert the table
+        // (with its merged, centered header row) inside it.
+        const rows = parseInt(tableRows, 10) || 2;
+        const cols = parseInt(tableCols, 10) || 2;
+        await insertContainerThenTable(
+          containerType,
+          rows,
+          cols,
+          COMPONENTS,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          log,
+          currentFilterTheme
+        );
+        setShowTableModal(false);
+        setStatus("✓ Table inserted.");
       } else if (pendingComponent) {
         // pendingComponent was chosen from the currently active page's
         // component set, so reuse that exact set for the nested insert.
@@ -850,6 +903,18 @@ export default function App() {
                 {textMediaComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
+                <button
+                  className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
+                  onClick={handleTableClick}
+                  disabled={!!loading}
+                  aria-label="Insert Table"
+                >
+                  <div className="component-card-top">
+                    <span className="component-card-label">
+                      {loading === "table" ? "Inserting…" : "Table"}
+                    </span>
+                  </div>
+                </button>
               </div>
             </section>
             <div className="section-divider" />
@@ -1053,6 +1118,60 @@ export default function App() {
                   style={{ display: "none" }}
                   onChange={handleFileChange}
                 />
+              </section>
+            </div>
+          </div>
+        )
+      }
+      {
+        showTableModal && (
+          <div className="container-modal-overlay" onClick={() => setShowTableModal(false)}>
+            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="image-modal-header">
+                <h3>Insert Table</h3>
+              </div>
+              <section className="image-section">
+                <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Rows
+                    <input
+                      type="number"
+                      className="rows-input"
+                      min="1"
+                      max="20"
+                      value={tableRows}
+                      onChange={(e) => setTableRows(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Columns
+                    <input
+                      type="number"
+                      className="cols-input"
+                      min="1"
+                      max="10"
+                      value={tableCols}
+                      onChange={(e) => setTableCols(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
+                </div>
+                <div className="image-actions">
+                  <button
+                    className="insert-btn"
+                    onClick={handleTableInsert}
+                    disabled={loading === "table"}
+                  >
+                    {loading === "table" ? "Inserting…" : "Insert into Word"}
+                  </button>
+                  <button
+                    className="cancel-btn"
+                    onClick={() => setShowTableModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </section>
             </div>
           </div>
@@ -1799,6 +1918,126 @@ async function insertContainerThenLinkToLearning(
       activeComponentIdRef.current = cc.id;
     }
     log(`[nested-insert] logo-with-text inserted successfully`);
+  });
+}
+
+/**
+ * Core table insertion logic, decoupled from how the insertion target was
+ * resolved — same shared-core pattern used for images and logo-with-text.
+ *
+ * Uses the native Word.Table API (`Range.insertTable` + `Table.mergeCells`)
+ * instead of a hand-built OOXML fragment. Raw `<w:tbl>` OOXML fragments
+ * passed to `insertOoxml` are unreliable — they can silently fail or need
+ * several seconds/keystrokes to materialize, especially on Word Online —
+ * whereas `insertTable`/`mergeCells` are regular, fully-supported Word JS
+ * API calls (WordApi 1.4+) that behave the same on Desktop and Web.
+ */
+async function insertTableAtTarget(target, context, rows, cols, meta) {
+  // IMPORTANT: Word.Table has no insertContentControl() method — only
+  // Body/Paragraph/Range/ContentControl do. So we can't build the table
+  // first and wrap it afterwards (that silently threw and left a bare,
+  // unwrapped table behind). Instead we wrap the anchor paragraph in the
+  // content control FIRST, then use ContentControl.insertTable(...) — the
+  // API Word provides specifically for placing a table inside/next to an
+  // existing content control — so the table ends up properly bounded.
+  const anchorParagraph = createAnchorParagraph(target, "");
+  const cc = wrapInContentControl(anchorParagraph, meta);
+  await context.sync();
+
+  const data = Array.from({ length: rows }, () => Array.from({ length: cols }, () => " "));
+  const table = cc.insertTable(rows, cols, Word.InsertLocation.end, data);
+  await context.sync();
+
+  // Simple visible grid, matching the styling used elsewhere in the file.
+  [
+    Word.BorderLocation.top,
+    Word.BorderLocation.bottom,
+    Word.BorderLocation.left,
+    Word.BorderLocation.right,
+    Word.BorderLocation.insideHorizontal,
+    Word.BorderLocation.insideVertical,
+  ].forEach((borderLocation) => {
+    const border = table.getBorder(borderLocation);
+    border.type = Word.BorderType.single;
+    border.color = "#BFBFBF";
+  });
+
+  // Merge every cell in the first row into a single header cell spanning
+  // the full table width, then center and bold its text.
+  const headerCell = cols > 1 ? table.mergeCells(0, 0, 0, cols - 1) : table.getCell(0, 0);
+  headerCell.body.clear();
+  const headerRange = headerCell.body.insertText("Header", Word.InsertLocation.start);
+  headerRange.font.bold = true;
+  headerCell.body.paragraphs.getFirst().alignment = Word.Alignment.centered;
+  await context.sync();
+
+  return cc;
+}
+
+async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+  return Word.run(async (context) => {
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    // Same rule as every other component: if there's no active container to
+    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
+    // the user to pick/create an Opener or Non Opener first.
+    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef);
+    const cc = await insertTableAtTarget(target, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+    }
+  });
+}
+
+/**
+ * Creates a brand-new opener/non-opener container, then inserts the table
+ * inside it. Used by the "Select Container" modal when the pending
+ * component was a table and there was no active container to insert into.
+ */
+async function insertContainerThenTable(
+  containerType,
+  rows,
+  cols,
+  COMPONENTS,
+  activeContainerIdRef,
+  activeComponentIdRef,
+  log = () => { },
+  currentFilterTheme
+) {
+  return Word.run(async (context) => {
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
+
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} }
+    );
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
+
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+    if (activeComponentIdRef) {
+      activeComponentIdRef.current = null;
+    }
+
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    const childTarget = { mode: "container", container: containerCc };
+    const cc = await insertTableAtTarget(childTarget, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+    }
+    log(`[nested-insert] table inserted successfully`);
   });
 }
 
