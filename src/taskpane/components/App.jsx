@@ -293,6 +293,20 @@ export default function App() {
     setLoading(id);
     setStatus("");
     try {
+      if (id === "quotation") {
+        // Quotation needs its own insertion logic (two separately tagged
+        // content controls inside one bounding box) instead of the
+        // generic single-content-control insertComponent flow.
+        await insertQuotationComponent(
+          components,
+          componentConfig,
+          currentFilterTheme,
+          activeContainerIdRef,
+          activeComponentIdRef
+        );
+        setStatus(`✓ "Quotation" inserted.`);
+        return;
+      }
       // Pass the current layout context so it gets embedded in the tag
       await insertComponent(
         id,
@@ -722,6 +736,20 @@ export default function App() {
         );
         setShowTableModal(false);
         setStatus("✓ Table inserted.");
+      } else if (pendingComponent === "quotation") {
+        // Same pattern: create the container first, then insert the
+        // quotation (quote line + author line, each separately tagged)
+        // inside it.
+        await insertContainerThenQuotation(
+          containerType,
+          COMPONENTS,
+          COMPONENT_CONFIG,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          log,
+          currentFilterTheme
+        );
+        setStatus("✓ Quotation inserted.");
       } else if (pendingComponent) {
         // pendingComponent was chosen from the currently active page's
         // component set, so reuse that exact set for the nested insert.
@@ -1622,6 +1650,20 @@ function applyStyle(range, style) {
   }
 }
 
+/**
+ * Same idea as applyStyle, but deliberately leaves font.highlightColor
+ * alone. Quotation's box background comes from paragraph.shading (a
+ * paragraph-level fill), and applyStyle's habit of forcing highlightColor
+ * to white when a style has no backgroundColor would paint a white
+ * highlight behind every character and wash out that shading.
+ */
+function applyQuoteFont(range, style = {}) {
+  range.font.name = style.font;
+  range.font.size = style.size;
+  range.font.color = style.color;
+  range.font.bold = style.bold || false;
+}
+
 async function insertDualTextComponent(target, context, meta, config) {
   const paragraph = createAnchorParagraph(target, config.text);
   const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
@@ -2038,6 +2080,133 @@ async function insertContainerThenTable(
       activeComponentIdRef.current = cc.id;
     }
     log(`[nested-insert] table inserted successfully`);
+  });
+}
+
+/**
+ * Core quotation insertion logic, decoupled from how the insertion target
+ * was resolved — same shared-core pattern used for images/tables.
+ *
+ * Produces ONE outer bounding content control (tag.type === "quotation")
+ * that contains two independently-tagged child content controls nested
+ * inside it: the quote line (tag.type === "quote-text") and the author
+ * line (tag.type === "quote-author", tag.parent === "quotation"). Keeping
+ * them as two separate content controls — instead of one blended
+ * paragraph like the figure-caption/lesson-overview "dual" pattern — is
+ * what lets the Python extraction pipeline pull the quote text and the
+ * author line out separately and hand back clean JSON.
+ */
+async function insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme) {
+  const backgroundColor = config.backgroundColor || "#C9D9C5";
+  const quoteStyle = config.quoteStyle || {};
+  const authorStyle = config.authorStyle || {};
+
+  // 1. The quote paragraph carries real content from the start and is
+  //    wrapped as the outer "quotation" box FIRST — this is the same
+  //    boundary-safe, no-leftover-blank-line pattern used for tables:
+  //    wrap real content, don't wrap-then-fill an empty placeholder.
+  const quotePara = createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
+  const outerMeta = buildMeta("quotation", COMPONENTS, currentFilterTheme);
+  const outerCc = wrapInContentControl(quotePara, outerMeta);
+  await context.sync();
+
+  // 2. Add the author line as a genuine second child of the outer CC via
+  //    ContentControl.insertParagraph — the same "sanctioned add-a-child"
+  //    method used for containers/tables elsewhere in this file.
+  const authorPara = outerCc.insertParagraph("\u2014Author Name, Source", Word.InsertLocation.end);
+  await context.sync();
+
+  // 3. Style both lines as one shared "box": same background shading and
+  //    side padding, with the quote/author fonts kept distinct.
+  [quotePara, authorPara].forEach((para) => {
+    para.leftIndent = 14;
+    para.rightIndent = 14;
+    para.shading.backgroundColor = backgroundColor;
+  });
+  quotePara.spaceBefore = 12;
+  quotePara.spaceAfter = 6;
+  authorPara.spaceBefore = 0;
+  authorPara.spaceAfter = 12;
+  applyQuoteFont(quotePara.getRange(), quoteStyle);
+  applyQuoteFont(authorPara.getRange(), authorStyle);
+  await context.sync();
+
+  // 4. Nest the quote and author lines EACH in their own content control,
+  //    tagged distinctly, inside the outer "quotation" content control.
+  const quoteMeta = { ...buildMeta("quote-text", [], currentFilterTheme), parent: "quotation" };
+  wrapInContentControl(quotePara, quoteMeta);
+
+  const authorMeta = { ...buildMeta("quote-author", [], currentFilterTheme), parent: "quotation" };
+  wrapInContentControl(authorPara, authorMeta);
+
+  await context.sync();
+  return outerCc;
+}
+
+async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+  return Word.run(async (context) => {
+    // Same rule as every other component: if there's no active container to
+    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
+    // the user to pick/create an Opener or Non Opener first.
+    const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef);
+    const config = COMPONENT_CONFIG["quotation"] || {};
+    const cc = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+    }
+  });
+}
+
+/**
+ * Creates a brand-new opener/non-opener container, then inserts the
+ * quotation inside it. Used by the "Select Container" modal when the
+ * pending component was a quotation and there was no active container to
+ * insert into.
+ */
+async function insertContainerThenQuotation(
+  containerType,
+  COMPONENTS,
+  COMPONENT_CONFIG,
+  activeContainerIdRef,
+  activeComponentIdRef,
+  log = () => { },
+  currentFilterTheme
+) {
+  return Word.run(async (context) => {
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
+
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} }
+    );
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
+
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+    if (activeComponentIdRef) {
+      activeComponentIdRef.current = null;
+    }
+
+    const config = COMPONENT_CONFIG["quotation"] || {};
+    const childTarget = { mode: "container", container: containerCc };
+    const cc = await insertQuotationAtTarget(childTarget, context, COMPONENTS, config, currentFilterTheme);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+    }
+    log(`[nested-insert] quotation inserted successfully`);
   });
 }
 
