@@ -71,22 +71,6 @@ export const THEME1_COMPONENTS = [
     placeholder: "• ",
   },
   {
-    id: "quotation",
-    label: "Quotation",
-    preview: "Quotation text goes here.",
-    previewPrefix: null,
-    category: "text-media",
-    placeholder: "",
-  },
-  {
-    id: "footer",
-    label: "Footer",
-    preview: "“Footer text goes here.”",
-    previewPrefix: null,
-    category: "text-media",
-    placeholder: "",
-  },
-  {
     id: "logo-with-text",
     label: "Logo with Text",
     description: "Small logo + editable learning link text",
@@ -159,28 +143,6 @@ export const THEME1_STYLES = {
     color: "#000000",
     bold: false,
   },
-  // New: Quotation styling — the quote line and the author line are each
-  // wrapped in their own content control (see App.js insertQuotationAtTarget),
-  // so they're kept as two separate style objects rather than one dual
-  // prefix/text pair like figure-caption / lesson-overview use.
-  quotationText: {
-    font: "Georgia,Arial",
-    size: 13,
-    color: "#1A1A1A",
-    bold: false,
-  },
-  quotationAuthor: {
-    font: "Arial",
-    size: 10.5,
-    color: "#1A1A1A",
-    bold: false,
-  },
-  footer: {
-    font: "Arial",
-    size: 9,
-    color: "#1A1A1A",
-    bold: false,
-  },
 };
 
 export const THEME1_COMPONENT_CONFIG = {
@@ -215,16 +177,6 @@ export const THEME1_COMPONENT_CONFIG = {
       prefixStyle: THEME1_STYLES.imageFigureNumber,
       textStyle: THEME1_STYLES.imageFigureText,
     }
-  },
-  // New: background/box color + per-line text styles used by
-  // insertQuotationAtTarget in App.js.
-  "quotation": {
-    backgroundColor: "#C9D9C5",
-    quoteStyle: THEME1_STYLES.quotationText,
-    authorStyle: THEME1_STYLES.quotationAuthor,
-  },
-  "footer": {
-    style: THEME1_STYLES.footer,
   },
 };
 
@@ -315,7 +267,7 @@ export const THEME2_COMPONENTS = [
     previewPrefix: null,
     category: "text-media",
     placeholder: "",
-  },{
+  }, {
     id: "footer",
     label: "Footer",
     preview: "Footer text goes here.",
@@ -409,14 +361,14 @@ export const THEME2_STYLES = {
   // controls).
   quotationText: {
     font: "Arial",
-    size: 14,
-    color: "#214880",
+    size: 13,
+    color: "#000000",
     bold: false,
   },
   quotationAuthor: {
     font: "Arial",
-    size: 10.5,
-    color: "#214880",
+    size: 10,
+    color: "#000000",
     bold: false,
   },
   footer: {
@@ -485,7 +437,7 @@ export const THEME2_COMPONENT_CONFIG = {
   // New: background/box color + per-line text styles used by
   // insertQuotationAtTarget in App.js.
   "quotation": {
-    backgroundColor: "#DCE4F0",
+    backgroundColor: "#C1D4C3",
     quoteStyle: THEME2_STYLES.quotationText,
     authorStyle: THEME2_STYLES.quotationAuthor,
   },

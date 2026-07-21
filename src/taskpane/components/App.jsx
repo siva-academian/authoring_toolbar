@@ -930,18 +930,20 @@ export default function App() {
                 {textMediaComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
-                <button
-                  className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
-                  onClick={handleTableClick}
-                  disabled={!!loading}
-                  aria-label="Insert Table"
-                >
-                  <div className="component-card-top">
-                    <span className="component-card-label">
-                      {loading === "table" ? "Inserting…" : "Table"}
-                    </span>
-                  </div>
-                </button>
+                {currentFilterTheme === "theme2" && (
+                  <button
+                    className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
+                    onClick={handleTableClick}
+                    disabled={!!loading}
+                    aria-label="Insert Table"
+                  >
+                    <div className="component-card-top">
+                      <span className="component-card-label">
+                        {loading === "table" ? "Inserting…" : "Table"}
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             </section>
             <div className="section-divider" />
