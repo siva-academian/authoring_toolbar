@@ -374,7 +374,7 @@ export const THEME2_STYLES = {
   footer: {
     font: "Arial",
     size: 9,
-    color: "#1A1A1A",
+    color: "#000000",
     bold: false,
   },
 };
