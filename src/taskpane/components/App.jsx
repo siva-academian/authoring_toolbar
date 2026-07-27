@@ -15,6 +15,31 @@ const InstrcutionIcon = () => (
   </svg>
 );
 
+const ImageIcon = () => (
+  <svg width="60" height="60" viewBox="0 0 105 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M78.8553 42.6075V42.7373C72.7827 42.7373 67.0745 45.0769 62.7815 49.325C58.4873 53.5744 56.123 59.223 56.123 65.2321C56.123 69.7286 57.4478 74.0246 59.9141 77.6828H59.7574C59.6287 77.4911 59.5013 77.292 59.3765 77.0941C59.3625 77.0714 59.3485 77.0487 59.3344 77.026H12.5374C7.5234 77.026 3.44446 72.9897 3.44446 68.0281V12.4081C3.44446 7.44649 7.5234 3.41016 12.5374 3.41016H68.7433C73.7573 3.41016 77.8362 7.44649 77.8362 12.4081V42.6302C78.1738 42.615 78.5139 42.6075 78.8553 42.6075Z" fill="white" />
+    <path d="M81.2821 12.4078V42.8631C80.4821 42.7799 79.672 42.737 78.8554 42.737C78.4707 42.737 78.0872 42.7471 77.7064 42.766V12.4078C77.7064 7.51802 73.686 3.53967 68.7447 3.53967H12.5375C7.59612 3.53967 3.57577 7.51802 3.57577 12.4078V68.0265C3.57577 72.9162 7.59612 76.8946 12.5375 76.8946H59.4084C59.4339 76.9374 59.4607 76.9816 59.4874 77.0244C59.625 77.245 59.7677 77.4644 59.9142 77.6812C60.5638 78.6455 61.2938 79.5645 62.0989 80.4317H12.5375C5.62416 80.4317 0 74.8663 0 68.0252V12.4078C0 5.56666 5.62416 0 12.5375 0H68.7434C75.6567 0 81.2821 5.56666 81.2821 12.4078Z" fill="#CADDE8" />
+    <path d="M22.1847 15.0791C17.7593 15.0791 14.1593 18.6415 14.1593 23.0207C14.1593 27.3999 17.7593 30.9622 22.1847 30.9622C26.6102 30.9622 30.2101 27.3999 30.2101 23.0207C30.2101 18.6415 26.6102 15.0791 22.1847 15.0791Z" fill="#CADDE8" />
+    <path d="M62.7815 49.3243C58.4873 53.5737 56.123 59.2223 56.123 65.2314C56.123 69.4619 57.295 73.5133 59.4873 77.0253H12.5374C7.5234 77.0253 3.44446 72.9889 3.44446 68.0274V57.5949L20.4405 42.1454C21.4035 41.2706 22.8545 41.2706 23.8163 42.1454L34.978 52.2917L57.1536 32.1327C58.1166 31.2591 59.5676 31.2591 60.5293 32.1327L73.0146 43.4841C69.1777 44.4863 65.6618 46.4767 62.7815 49.3268V49.3243Z" fill="#CADDE8" />
+    <path d="M91.928 78.1668C99.1474 71.0228 99.1474 59.4401 91.928 52.2961C84.7086 45.1521 73.0036 45.1521 65.7842 52.2961C58.5648 59.4401 58.5648 71.0228 65.7842 78.1668C73.0036 85.3108 84.7086 85.3108 91.928 78.1668Z" fill="#CADDE8" />
+    <path d="M86.9179 65.3817C86.2211 64.6921 85.086 64.6921 84.3892 65.3817L80.644 69.0877V57.1048C80.644 56.1291 79.8415 55.335 78.8555 55.335C77.8695 55.335 77.067 56.1291 77.067 57.1048V69.0877L73.3218 65.3817C72.9728 65.0363 72.5154 64.8648 72.0581 64.8648C71.6008 64.8648 71.1422 65.0375 70.7944 65.3817C70.4569 65.7157 70.2709 66.1607 70.2709 66.6334C70.2709 67.1061 70.4569 67.5499 70.7944 67.8839L77.5918 74.6103C78.2886 75.2998 79.4237 75.2998 80.1205 74.6103L86.9179 67.8839C87.2554 67.5499 87.4414 67.1049 87.4414 66.6334C87.4414 66.162 87.2554 65.717 86.9179 65.3817Z" fill="white" />
+  </svg>
+);
+
+const LinkIcon = () => (
+  <svg width="41" height="41" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clip-path="url(#clip0_2367_1034)">
+      <path d="M25.3848 0C16.7745 0 9.76953 7.00496 9.76953 15.6152C9.76953 19.489 11.1881 23.0372 13.532 25.7695L11.9482 27.3532L10.2494 25.6544L0 35.9038L5.09622 41L15.3456 30.7506L13.6468 29.0518L15.2305 27.468C17.9628 29.8122 21.511 31.2305 25.3848 31.2305C33.995 31.2305 41 24.2255 41 15.6152C41 7.00496 33.995 0 25.3848 0ZM5.09622 37.6026L3.39738 35.9038L10.2494 29.0518L11.9479 30.7506L5.09622 37.6026ZM25.3848 28.8281C18.0992 28.8281 12.1719 22.9008 12.1719 15.6152C12.1719 8.32969 18.0992 2.40234 25.3848 2.40234C32.6703 2.40234 38.5977 8.32969 38.5977 15.6152C38.5977 22.9008 32.6703 28.8281 25.3848 28.8281Z" fill="#525099" />
+      <path d="M18.1777 9.60938H20.5801V13.8557L23.2192 15.6152L20.5801 17.3748V21.6211H18.1777V24.0234H32.5918V21.6211H30.1895V17.3748L27.5503 15.6152L30.1895 13.8557V9.60938H32.5918V7.20703H18.1777V9.60938ZM27.7871 18.6604V21.6211H22.9824V18.6604L25.3848 17.0588L27.7871 18.6604ZM27.7871 12.5701L25.3848 14.1716L22.9824 12.5701V9.60938H27.7871V12.5701Z" fill="#B12D2D" />
+    </g>
+    <defs>
+      <clipPath id="clip0_2367_1034">
+        <rect width="41" height="41" fill="white" />
+      </clipPath>
+    </defs>
+  </svg>
+);
+
 const renderComponentCard = ({ comp, loading, handleCardClick, themeId }) => {
   if (!comp || comp.id === "image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
@@ -949,24 +974,59 @@ export default function App() {
             <div className="section-divider" />
             <section className="component-section">
               <h2 className="section-heading">Media</h2>
-              <div className="card-grid">
-                {imageComponent && (
-                  <button
-                    key={imageComponent.id}
-                    className={`component-card${loading === "image" ? " component-card--loading" : ""}`}
-                    onClick={() => handleCardClick("image")}
-                    disabled={!!loading}
-                    aria-label={`Insert ${imageComponent.label}`}
-                  >
-                    <div className="component-card-top">
-                      <span className="component-card-label">
-                        {loading === "image" ? "Inserting…" : imageComponent.label}
-                      </span>
-                    </div>
-                  </button>
+              <section className="image-section">
+                <div
+                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
+                  onClick={() => fileInputRef.current.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
+                  ) : (
+                    <>
+                      {/* Image icon */}
+                      <div className="drop-zone-icon">
+                        {ImageIcon()}
+                      </div>
+                      <p className="drop-zone-title">Drag &amp; drop image here</p>
+                      <p className="drop-zone-subtitle">or browse files</p>
+                      <button
+                        className="insert-btn"
+                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
+                        disabled={loading === "figure-image"}
+                      >
+                        {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="image-actions">
+                    <button
+                      className="insert-btn"
+                      onClick={handleImageInsert}
+                      disabled={!imageFile || loading === "figure-image"}
+                    >
+                      {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                    </button>
+                    <button
+                      className="cancel-btn"
+                      onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 )}
-              </div>
-
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+              </section>
               <div className="link-learning-panel">
                 <div className="link-learning-top">
                   <div>
@@ -984,7 +1044,7 @@ export default function App() {
                   <div className="link-learning-logo-box">
                     {linkImagePreview
                       ? <img src={linkImagePreview} alt="Logo with Text preview" />
-                      : <span>Logo</span>
+                      : <span>{LinkIcon()}</span>
                     }
                   </div>
                   <div className="link-learning-text-preview">Text with Icon</div>
@@ -1075,83 +1135,6 @@ export default function App() {
           </details>
         )}
       </main>
-      {
-        showImageModal && (
-          <div className="container-modal-overlay" onClick={() => setShowImageModal(false)}>
-            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="image-modal-header">
-                <h3>Insert Image</h3>
-                <button
-                  type="button"
-                  className="image-modal-close"
-                  aria-label="Close"
-                  onClick={() => setShowImageModal(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <section className="image-section">
-                <div
-                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
-                  onClick={() => fileInputRef.current.click()}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                >
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
-                  ) : (
-                    <>
-                      <div className="drop-zone-icon">
-                        <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
-                          <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
-                          <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
-                          <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
-                          <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                      <p className="drop-zone-title">Drag &amp; drop image here</p>
-                      <p className="drop-zone-subtitle">or browse files</p>
-                      <button
-                        className="insert-btn"
-                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
-                        disabled={loading === "image"}
-                      >
-                        {loading === "image" ? "Inserting…" : "Insert into Word"}
-                      </button>
-                    </>
-                  )}
-                </div>
-                {imagePreview && (
-                  <div className="image-actions">
-                    <button
-                      className="insert-btn"
-                      onClick={handleImageInsert}
-                      disabled={!imageFile || loading === "image"}
-                    >
-                      {loading === "image" ? "Inserting…" : "Insert into Word"}
-                    </button>
-                    <button
-                      className="cancel-btn"
-                      onClick={() => { setImageFile(null); setImagePreview(null); }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  style={{ display: "none" }}
-                  onChange={handleFileChange}
-                />
-              </section>
-            </div>
-          </div>
-        )
-      }
       {
         showTableModal && (
           <div className="container-modal-overlay" onClick={() => setShowTableModal(false)}>

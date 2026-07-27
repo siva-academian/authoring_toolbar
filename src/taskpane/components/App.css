@@ -501,12 +501,12 @@ layoutctl-panel {
 
 .link-learning-panel {
   background: #fff;
-  border: 1px solid #c8d8de;
-  border-radius: 8px;
+  border: 1px solid #9C9C9C;
+  border-radius: 20px;
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
@@ -534,8 +534,8 @@ layoutctl-panel {
 
 .link-learning-preview-row {
   align-items: center;
-  background: #f8f8f8;
-  border: 1px solid #dcd9d9;
+  background: #F8F8F8;
+  border: 1px solid #DCD9D9;
   border-radius: 6px;
   display: flex;
   gap: 8px;
@@ -545,8 +545,8 @@ layoutctl-panel {
 
 .link-learning-logo-box {
   align-items: center;
-  background: #fff;
-  border: 1px solid #d0d7dc;
+  background: #E7E0E0;
+  border: 1px solid #DCD9D9;
   border-radius: 5px;
   color: #777;
   display: flex;
@@ -594,17 +594,16 @@ layoutctl-panel {
 
 .drop-zone {
   background: #fff;
-  border-radius: 16px;
-  border: 2px dashed #c8d8de;
+  border-radius: 20px;
+  border: 1px solid #9C9C9C;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 36px 24px;
+  gap: 4px;
+  padding: 10px;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
-  min-height: 280px;
 }
 
 .drop-zone:hover {
@@ -626,7 +625,6 @@ layoutctl-panel {
 }
 
 .drop-zone-icon {
-  margin-bottom: 4px;
   opacity: 0.75;
 }
 
