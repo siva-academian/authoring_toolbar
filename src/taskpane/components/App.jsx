@@ -140,6 +140,17 @@ export default function App() {
   // somewhere else by hand.
   const activeComponentIdRef = useRef(null);
 
+  // ── Component metadata cache, keyed by content-control id ────────────────
+  // Whenever we insert (or later re-detect) a component we remember its
+  // parsed tag/meta here. This lets the DocumentSelectionChanged handler:
+  //   1. Re-apply that exact component's font/style to whatever text is now
+  //      inside it (typed or pasted), so pasted content always inherits the
+  //      component's look instead of the clipboard's own formatting.
+  //   2. Re-wrap content that Word "escaped" outside its content control
+  //      (see reclaimEscapedContent) using the SAME tag/meta it had before,
+  //      so the component keeps behaving exactly like it did originally.
+  const componentMetaCacheRef = useRef({});
+
   const pageConfig =
     THEME_TYPE[currentFilterTheme ?? DEFAULT_THEME] ||
     Object.values(THEME_TYPE).find((page) => page.id === currentFilterTheme) ||
@@ -188,15 +199,59 @@ export default function App() {
           if (container) {
             container.load("id");
             if (selectedComponent) {
-              selectedComponent.load("id");
+              selectedComponent.load("id,tag");
             }
             await context.sync();
+
+            let resolvedComponentId = selectedComponent ? selectedComponent.id : null;
+
+            if (!selectedComponent) {
+              // The cursor is on the container itself, not on any specific
+              // child component. If the component we were last on has
+              // since vanished, check whether Word "escaped" its pasted
+              // replacement text outside the content control (selecting
+              // 100% of a component's text and pasting deletes the
+              // now-empty control before the paste lands) and, if so,
+              // re-wrap that text with the same tag/meta so it keeps
+              // behaving like the original component.
+              const lastKnownComponentId = activeComponentIdRef.current;
+              const lastKnownMeta = lastKnownComponentId
+                ? componentMetaCacheRef.current[lastKnownComponentId]
+                : null;
+              if (lastKnownMeta) {
+                const stillExists = await getComponentById(context, lastKnownComponentId);
+                if (!stillExists) {
+                  const reclaimedCc = await reclaimEscapedContent(
+                    context,
+                    container,
+                    lastKnownMeta,
+                    componentMetaCacheRef
+                  );
+                  if (reclaimedCc) {
+                    resolvedComponentId = reclaimedCc.id;
+                  }
+                }
+              }
+            } else {
+              // Cursor settled on a real, existing component — re-apply
+              // its defined font/style to its whole text range. This is
+              // what makes newly typed or pasted text auto-format to
+              // match the component instead of keeping whatever
+              // formatting it arrived with (e.g. from the clipboard).
+              const meta = parseContentControlTag(selectedComponent.tag);
+              if (meta) {
+                componentMetaCacheRef.current[selectedComponent.id] = meta;
+                await reapplyStyleToComponent(context, selectedComponent, meta);
+                await context.sync();
+              }
+            }
+
             activeContainerIdRef.current = container.id;
             // selectedComponent is the specific child component the cursor
             // is currently inside (or null if the cursor is on the
             // container itself, not on any particular child) — either way
             // this reflects the true current state, so we always update it.
-            activeComponentIdRef.current = selectedComponent ? selectedComponent.id : null;
+            activeComponentIdRef.current = resolvedComponentId;
           }
           // If the click landed outside any container, we deliberately do
           // NOT clear activeContainerIdRef/activeComponentIdRef here — an
@@ -326,7 +381,8 @@ export default function App() {
           componentConfig,
           currentFilterTheme,
           activeContainerIdRef,
-          activeComponentIdRef
+          activeComponentIdRef,
+          componentMetaCacheRef
         );
         setStatus(`✓ "Quotation" inserted.`);
         return;
@@ -339,7 +395,8 @@ export default function App() {
         styles,
         activeContainerIdRef,
         activeComponentIdRef,
-        currentFilterTheme
+        currentFilterTheme,
+        componentMetaCacheRef
       );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
@@ -393,7 +450,8 @@ export default function App() {
         COMPONENTS,
         currentFilterTheme,
         activeContainerIdRef,
-        activeComponentIdRef
+        activeComponentIdRef,
+        componentMetaCacheRef
       );
       setStatus("✓ Logo with Text inserted.");
       setLinkImageFile(null);
@@ -444,7 +502,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef);
+      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -479,7 +537,7 @@ export default function App() {
     setLoading("table");
     setStatus("");
     try {
-      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef);
+      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
       setStatus("✓ Table inserted.");
       setShowTableModal(false);
     } catch (err) {
@@ -714,7 +772,8 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setImageFile(null);
         setImagePreview(null);
@@ -737,7 +796,8 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setLinkImageFile(null);
         setLinkImagePreview(null);
@@ -756,7 +816,8 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setShowTableModal(false);
         setStatus("✓ Table inserted.");
@@ -771,7 +832,8 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setStatus("✓ Quotation inserted.");
       } else if (pendingComponent) {
@@ -786,7 +848,8 @@ export default function App() {
           activeContainerIdRef,
           activeComponentIdRef,
           log,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
       } else {
         await insertComponent(
@@ -800,7 +863,8 @@ export default function App() {
           {},
           activeContainerIdRef,
           activeComponentIdRef,
-          currentFilterTheme
+          currentFilterTheme,
+          componentMetaCacheRef
         );
       }
 
@@ -1453,6 +1517,129 @@ function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   };
 }
 
+/**
+ * Looks up the style/config that should be applied to a component's text,
+ * given only the meta that was embedded in its content-control tag at
+ * insertion time (meta.theme + meta.type). This lets us re-apply the
+ * correct formatting later — from the selection-changed handler, long
+ * after the original COMPONENTS/STYLES/COMPONENT_CONFIG closure that
+ * created it is gone — using only what's stored in the tag itself.
+ */
+function resolveThemePage(themeId) {
+  return (
+    THEME_TYPE[themeId] ||
+    Object.values(THEME_TYPE).find((p) => p.id === themeId) ||
+    THEME_TYPE[DEFAULT_THEME]
+  );
+}
+
+/**
+ * Re-applies a component's own defined font/style to its entire current
+ * text range. Safe to call after typing, pasting, or reclaiming escaped
+ * content — it always resets formatting back to what the component is
+ * supposed to look like, regardless of what formatting the new text
+ * arrived with (e.g. from a clipboard paste).
+ *
+ * Deliberately skipped for component types with bespoke, structural
+ * layouts (image captions, the icon-with-text table, and the multi-row
+ * table component) where blindly re-styling the whole range could damage
+ * the embedded picture/table rather than just its text.
+ */
+async function reapplyStyleToComponent(context, cc, meta) {
+  if (!meta || meta.container) return;
+  if (meta.type === "image" || meta.type === "logo-with-text" || meta.type === "table") {
+    return;
+  }
+
+  const themePage = resolveThemePage(meta.theme);
+
+  if (meta.type === "quote-text" || meta.type === "quote-author") {
+    const quoteConfig = themePage?.COMPONENT_CONFIG?.["quotation"] || {};
+    const style = meta.type === "quote-text" ? quoteConfig.quoteStyle : quoteConfig.authorStyle;
+    applyQuoteFont(cc.getRange(), style || {});
+    return;
+  }
+
+  const config = themePage?.COMPONENT_CONFIG?.[meta.type] || {};
+  const range = cc.getRange();
+
+  if (meta.type === "bullet-list") {
+    applyStyle(range, themePage?.STYLES?.bullestList || {});
+    return;
+  }
+
+  if (config.dual) {
+    applyStyle(range, config.dual.textStyle || {});
+    return;
+  }
+
+  applyStyle(range, config.style || {});
+}
+
+/**
+ * Handles the one Word paste quirk this add-in needs to guard against:
+ * selecting 100% of a component's text (including the trailing space right
+ * up to the content control's own boundary) and pasting. Word treats that
+ * as "delete the current selection, then insert the clipboard content" —
+ * and because every component content control has cannotDelete === false,
+ * deleting 100% of its content causes Word to automatically remove the
+ * (now-empty) content control before the paste lands. The pasted text then
+ * gets inserted as a plain, untagged paragraph sitting directly inside the
+ * container instead of inside a component.
+ *
+ * This looks for that exact aftermath — a real, untagged paragraph sitting
+ * as a direct child of the container, in the container's body — and
+ * re-wraps it with the SAME tag/meta the original component had, then
+ * re-applies that component's formatting. From the user's point of view
+ * the pasted text simply lands inside the same box, instead of escaping
+ * outside of it.
+ */
+async function reclaimEscapedContent(context, container, meta, componentMetaCacheRef) {
+  if (!meta) return null;
+
+  container.load("id");
+  const paragraphs = container.body.paragraphs;
+  paragraphs.load("items");
+  await context.sync();
+
+  for (const paragraph of paragraphs.items) {
+    const paragraphRange = paragraph.getRange();
+    paragraphRange.load("text");
+    const parentCc = paragraphRange.parentContentControlOrNullObject;
+    parentCc.load("isNullObject,id,tag");
+    // eslint-disable-next-line no-await-in-loop
+    await context.sync();
+
+    // A paragraph counts as "escaped" if its nearest surrounding content
+    // control is no longer the component we're looking for — either
+    // because there's no surrounding control at all beyond the top-level
+    // container (the common case), or because — for components like
+    // quote-text/quote-author that normally live one level deeper, inside
+    // their own "quotation" wrapper — the nearest control it's now sitting
+    // in is that outer wrapper rather than its own. Either way, real text
+    // sitting there that isn't already wrapped in a control of the exact
+    // same type is text Word "escaped" that we need to re-wrap.
+    const parentMeta = parentCc.isNullObject ? null : parseContentControlTag(parentCc.tag);
+    const isEscaped = !parentMeta || parentMeta.type !== meta.type;
+    const hasRealText = !!paragraphRange.text && paragraphRange.text.trim().length > 0;
+
+    if (isEscaped && hasRealText) {
+      const cc = wrapInContentControl(paragraph, meta);
+      await context.sync();
+      await reapplyStyleToComponent(context, cc, meta);
+      await context.sync();
+      cc.load("id");
+      await context.sync();
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+      return cc;
+    }
+  }
+
+  return null;
+}
+
 async function insertComponent(
   id,
   COMPONENTS,
@@ -1460,7 +1647,8 @@ async function insertComponent(
   STYLES,
   activeContainerIdRef,
   activeComponentIdRef,
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef);
@@ -1488,6 +1676,9 @@ async function insertComponent(
         // click elsewhere first) lands right after it.
         activeComponentIdRef.current = cc.id;
       }
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1510,7 +1701,8 @@ async function insertComponentInsideNewContainer(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
@@ -1564,6 +1756,9 @@ async function insertComponentInsideNewContainer(
       childCc.load("id");
       await context.sync();
       activeComponentIdRef.current = childCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[childCc.id] = childMeta;
+      }
     }
     log(`[nested-insert] child inserted successfully`);
   });
@@ -1598,7 +1793,7 @@ async function insertStyledComponent(target, context, meta, config) {
   // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
-  const paragraph = createAnchorParagraph(target, initialText);
+  const paragraph = createAnchorParagraph(target, "");
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
   cc.tag = JSON.stringify(meta);
@@ -1613,9 +1808,9 @@ async function insertStyledComponent(target, context, meta, config) {
     // target for the next insert, not the document selection.
     return cc;
   }
-
-  const body = cc.getRange();
-  body.insertText(" ", Word.InsertLocation.end);
+  const body = paragraph.getRange();
+  // const body = cc.getRange();
+  // body.insertText(" ", Word.InsertLocation.end);
   if (config.style) {
     applyStyle(body, config.style);
   }
@@ -1701,7 +1896,7 @@ async function insertImageAtTarget(target, context, base64, meta) {
   return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
@@ -1714,6 +1909,9 @@ async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeC
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1730,7 +1928,8 @@ async function insertContainerThenImage(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
@@ -1762,6 +1961,9 @@ async function insertContainerThenImage(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
     log(`[nested-insert] image inserted successfully`);
   });
@@ -1879,7 +2081,7 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
   return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
@@ -1892,6 +2094,9 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1910,7 +2115,8 @@ async function insertContainerThenLinkToLearning(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
@@ -1942,6 +2148,9 @@ async function insertContainerThenLinkToLearning(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
     log(`[nested-insert] logo-with-text inserted successfully`);
   });
@@ -2000,7 +2209,7 @@ async function insertTableAtTarget(target, context, rows, cols, meta) {
   return cc;
 }
 
-async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
@@ -2013,6 +2222,9 @@ async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, 
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -2030,7 +2242,8 @@ async function insertContainerThenTable(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
@@ -2062,6 +2275,9 @@ async function insertContainerThenTable(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
     log(`[nested-insert] table inserted successfully`);
   });
@@ -2118,28 +2334,34 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   // 4. Nest the quote and author lines EACH in their own content control,
   //    tagged distinctly, inside the outer "quotation" content control.
   const quoteMeta = { ...buildMeta("quote-text", [], currentFilterTheme), parent: "quotation" };
-  wrapInContentControl(quotePara, quoteMeta);
+  const quoteCc = wrapInContentControl(quotePara, quoteMeta);
 
   const authorMeta = { ...buildMeta("quote-author", [], currentFilterTheme), parent: "quotation" };
-  wrapInContentControl(authorPara, authorMeta);
+  const authorCc = wrapInContentControl(authorPara, authorMeta);
 
   await context.sync();
-  return outerCc;
+  return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta };
 }
 
-async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef) {
+async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
     const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef);
     const config = COMPONENT_CONFIG["quotation"] || {};
-    const cc = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
+    const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
 
-    if (cc && activeComponentIdRef) {
-      cc.load("id");
+    if (activeComponentIdRef) {
+      outerCc.load("id");
+      quoteCc.load("id");
+      authorCc.load("id");
       await context.sync();
-      activeComponentIdRef.current = cc.id;
+      activeComponentIdRef.current = outerCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
+        componentMetaCacheRef.current[authorCc.id] = authorMeta;
+      }
     }
   });
 }
@@ -2157,7 +2379,8 @@ async function insertContainerThenQuotation(
   activeContainerIdRef,
   activeComponentIdRef,
   log = () => { },
-  currentFilterTheme
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
@@ -2183,12 +2406,18 @@ async function insertContainerThenQuotation(
 
     const config = COMPONENT_CONFIG["quotation"] || {};
     const childTarget = { mode: "container", container: containerCc };
-    const cc = await insertQuotationAtTarget(childTarget, context, COMPONENTS, config, currentFilterTheme);
+    const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(childTarget, context, COMPONENTS, config, currentFilterTheme);
 
-    if (cc && activeComponentIdRef) {
-      cc.load("id");
+    if (activeComponentIdRef) {
+      outerCc.load("id");
+      quoteCc.load("id");
+      authorCc.load("id");
       await context.sync();
-      activeComponentIdRef.current = cc.id;
+      activeComponentIdRef.current = outerCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
+        componentMetaCacheRef.current[authorCc.id] = authorMeta;
+      }
     }
     log(`[nested-insert] quotation inserted successfully`);
   });
