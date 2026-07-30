@@ -48,7 +48,7 @@ const renderComponentCard = ({ comp, loading, handleCardClick, themeId }) => {
     <button
       key={comp.id}
       className={`component-card${isActive ? " component-card--loading" : ""}`}
-      onClick={() => handleCardClick(comp.id)}
+      onClick={() => handleCardClick(comp.id, themeId)}
       disabled={!!loading}
       aria-label={`Insert ${comp.label}`}
     >
@@ -1544,6 +1544,15 @@ function resolveThemePage(themeId) {
  * layouts (image captions, the icon-with-text table, and the multi-row
  * table component) where blindly re-styling the whole range could damage
  * the embedded picture/table rather than just its text.
+ *
+ * Also deliberately skipped for "dual" components (a single box that
+ * carries TWO distinct styles at once — e.g. a bold prefix label plus a
+ * differently-styled body, like the Lesson Overview component on Style 2)
+ * — since we only track ONE style per content control here, re-applying it
+ * across the whole range would blow away whichever of the two styles
+ * (prefix vs. text) currently occupies that portion of the box, silently
+ * turning a two-style component into a one-style one. Their formatting is
+ * instead left exactly as the user last set it, whether typed or pasted.
  */
 async function reapplyStyleToComponent(context, cc, meta) {
   if (!meta || meta.container) return;
@@ -1561,15 +1570,16 @@ async function reapplyStyleToComponent(context, cc, meta) {
   }
 
   const config = themePage?.COMPONENT_CONFIG?.[meta.type] || {};
+
+  if (config.dual) {
+    // Hidden on purpose — see the note above the function.
+    return;
+  }
+
   const range = cc.getRange();
 
   if (meta.type === "bullet-list") {
     applyStyle(range, themePage?.STYLES?.bullestList || {});
-    return;
-  }
-
-  if (config.dual) {
-    applyStyle(range, config.dual.textStyle || {});
     return;
   }
 
