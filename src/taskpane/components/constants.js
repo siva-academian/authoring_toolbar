@@ -42,6 +42,13 @@ export const THEME1_COMPONENTS = [
     placeholder: "Properties of Life",
   },
   {
+    id: "sub-section-title",
+    label: "Sub Section Title",
+    preview: "Order",
+    category: "header",
+    placeholder: "Order",
+  },
+  {
     id: "paragraph-text",
     label: "Paragraph Text",
     preview: "Start typing your text here...",
@@ -117,6 +124,12 @@ export const THEME1_STYLES = {
     color: "#0074BC",
     bold: false,
   },
+  subSectionTitle: {
+    font: "Arial",
+    size: 9,
+    color: "#0074BC",
+    bold: false,
+  },
   paragrapghText: {
     // Updated per style table: font family changed from "Arial" to
     // "IBM Flex Sans Regular" for Theme 1 body paragraphs.
@@ -169,6 +182,9 @@ export const THEME1_COMPONENT_CONFIG = {
   },
   "section-title": {
     style: THEME1_STYLES.sectionTitle,
+  },
+  "sub-section-title": {
+    style: THEME1_STYLES.subSectionTitle,
   },
   "figure-caption": {
     dual: {

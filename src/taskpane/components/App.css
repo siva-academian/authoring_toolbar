@@ -931,7 +931,7 @@ layoutctl-panel {
 
 .component-card-preview[data-theme="theme1"][data-comp-id="sub-section-title"] {
   color: #0074BC;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 11px;
 }
 
