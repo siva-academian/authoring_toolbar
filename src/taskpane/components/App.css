@@ -142,10 +142,10 @@ button:disabled {
 
 .ai-buttons {
   color: #297EFF;
-  font-size: 11px;
+  font-size: 12px;
   border: none;
   font-weight: 600;
-  border-radius: 5px;
+  border-radius: 50px;
   padding: 10px 14px;
   cursor: pointer;
   border: 1px solid #297EFF;
@@ -223,7 +223,7 @@ layoutctl-panel {
   flex: 1;
   gap: 4px;
   background: #F4F5F8;
-  border-radius: 7px;
+  border-radius: 50px;
   padding: 2px;
 }
 
@@ -231,7 +231,7 @@ layoutctl-panel {
   flex: 1;
   padding: 5px 8px;
   border: none;
-  border-radius: 5px;
+  border-radius: 30px;
   background: transparent;
   color: var(--layoutctl-text);
   font-size: 12px;
@@ -242,7 +242,8 @@ layoutctl-panel {
 }
 
 .layoutctl-segment:hover {
-  background: #FFFFFF;
+  background: #878787;
+  color: #FFFFFF;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
@@ -277,16 +278,16 @@ layoutctl-panel {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
-  color: var(--layoutctl-text);
+  color: #000000;
   background: #FFFFFF;
-  border: 1px solid var(--layoutctl-border);
-  border-radius: 6px;
+  border: 1px solid #DCD9D9;
+  border-radius: 50px;
   cursor: pointer;
   transition: border-color 120ms ease;
 }
 
 .layoutctl-select:hover {
-  border-color: var(--layoutctl-accent);
+  border-color: #878787;
 }
 
 .layoutctl-select:focus-visible {
@@ -297,7 +298,7 @@ layoutctl-panel {
 
 .layoutctl-select-chevron {
   position: absolute;
-  right: 8px;
+  right: 12px;
   color: var(--layoutctl-text-muted);
   pointer-events: none;
 }
@@ -420,7 +421,7 @@ layoutctl-panel {
 /* ─── Component card ─────────────────────────────────────────────────────── */
 .component-card {
   background: #F8F8F8;
-  border-radius: 12px;
+  border-radius: 15px;
   padding: 8px 12px 8px 12px;
   display: flex;
   flex-direction: column;
@@ -466,33 +467,46 @@ layoutctl-panel {
 }
 
 /* ─── Card preview box ───────────────────────────────────────────────────── */
+.component-card-preview-box {
+  width: 100%;
+  max-width: 100%;
+}
+
 .component-card-preview {
   font-size: 11px;
   color: #000;
   line-height: 1.4;
   display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-figure-label {
   font-size: 11px;
   font-weight: 700;
   color: #c00000;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-figure-text {
   font-size: 11px;
   font-style: italic;
   color: #555;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .link-learning-panel {
   background: #fff;
-  border: 1px solid #c8d8de;
-  border-radius: 8px;
+  border: 1px solid #9C9C9C;
+  border-radius: 20px;
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
@@ -520,8 +534,8 @@ layoutctl-panel {
 
 .link-learning-preview-row {
   align-items: center;
-  background: #f8f8f8;
-  border: 1px solid #dcd9d9;
+  background: #F8F8F8;
+  border: 1px solid #DCD9D9;
   border-radius: 6px;
   display: flex;
   gap: 8px;
@@ -531,8 +545,8 @@ layoutctl-panel {
 
 .link-learning-logo-box {
   align-items: center;
-  background: #fff;
-  border: 1px solid #d0d7dc;
+  background: #E7E0E0;
+  border: 1px solid #DCD9D9;
   border-radius: 5px;
   color: #777;
   display: flex;
@@ -580,17 +594,16 @@ layoutctl-panel {
 
 .drop-zone {
   background: #fff;
-  border-radius: 16px;
-  border: 2px dashed #c8d8de;
+  border-radius: 20px;
+  border: 1px solid #9C9C9C;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 36px 24px;
+  gap: 4px;
+  padding: 10px;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
-  min-height: 280px;
 }
 
 .drop-zone:hover {
@@ -612,7 +625,6 @@ layoutctl-panel {
 }
 
 .drop-zone-icon {
-  margin-bottom: 4px;
   opacity: 0.75;
 }
 
@@ -671,8 +683,8 @@ layoutctl-panel {
 }
 
 .cancel-btn {
-  background: transparent;
-  color: #FFFFFF;
+  background: #FFFFFF;
+  color: #333333;
   font-size: 13px;
   font-weight: 600;
   border: 1.5px solid #ccc;
@@ -714,7 +726,8 @@ layoutctl-panel {
   color: #fff;
 }
 
-.footer-btn--pdf.footer-btn--loading, .footer-btn--web.footer-btn--loading {
+.footer-btn--pdf.footer-btn--loading,
+.footer-btn--web.footer-btn--loading {
   border: 1px solid #c00000;
   color: #c00000;
   background: #fff;
@@ -734,7 +747,8 @@ layoutctl-panel {
   transform: scale(0.97);
 }
 
-.footer-btn--pdf.footer-btn--loading:hover, .footer-btn--web.footer-btn--loading:hover {
+.footer-btn--pdf.footer-btn--loading:hover,
+.footer-btn--web.footer-btn--loading:hover {
   background: #fff;
   color: #c00000;
 }
@@ -789,7 +803,8 @@ layoutctl-panel {
   z-index: 999999;
 }
 
-.container-modal {
+.container-modal,
+.image-modal {
   width: 320px;
   background: #fff;
   border-radius: 10px;
@@ -815,6 +830,16 @@ layoutctl-panel {
   background: #888;
 }
 
+.rows-input,
+.cols-input {
+  width: 70px;
+  margin-top: 4px;
+  padding: 4px 6px;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 4px;
@@ -827,4 +852,206 @@ layoutctl-panel {
 ::-webkit-scrollbar-thumb {
   background: #c0cdd2;
   border-radius: 4px;
+}
+
+/* ===========================================================
+   Per-component / per-theme preview styling
+   -----------------------------------------------------------
+   Mirrors each component's real Word style (font, color, weight,
+   background chip, dual prefix/text coloring) for the small card
+   preview, so it gives an accurate at-a-glance idea of how that
+   component will look once inserted — kept in sync with the style
+   table applied to constants.js.
+
+   Font sizes here are intentionally NOT 1:1 with the real point
+   sizes in constants.js (some headings are 22–44pt in the real
+   document) — they're compressed into an 11–15px range so a card
+   in a ~300px-wide task pane never overflows or breaks the
+   2-column grid, while still keeping the relative size hierarchy
+   (bigger real heading → slightly bigger preview) and the exact
+   color/weight/background, which is what makes each preview
+   visually distinguishable.
+
+   `.component-card-preview-box`/`.component-card-preview` already
+   wrap long text and grow in height automatically (see above), so
+   longer previews simply take more lines/height instead of
+   overflowing or clipping.
+
+   Custom font families (Theme 1's "IBM Flex Sans Regular", Theme
+   2's "Neue Kabel Regular") are applied with a sans-serif fallback
+   stack in case those fonts aren't installed/loaded wherever the
+   task pane renders.
+=========================================================== */
+/* ─── Theme 1 ("theme1") ───────────────────────────────────────────── */
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-number"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-title"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="chapter-overview"] {
+  color: #0074BC;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="lesson-overview"] {
+  color: #000000;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="lesson-title"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="learning-objectives"] {
+  color: #0074BC;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="section-title"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="sub-section-title"] {
+  color: #0074BC;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="paragraph-text"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+  font-family: "IBM Flex Sans Regular", Arial, Helvetica, sans-serif;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="bullet-list"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="figure-caption"] .preview-figure-label {
+  color: #C31427;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="figure-caption"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+/* ─── Theme 2 ("theme2") ──────────────────────────────────────────── */
+.component-card-preview[data-theme="theme2"][data-comp-id="part-number"] {
+  display: inline-block;
+  max-width: 100%;
+  color: #FFFFFF;
+  font-weight: 400;
+  font-size: 13px;
+  background: #CA5027;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-number"] {
+  display: inline-block;
+  max-width: 100%;
+  color: #FFFFFF;
+  font-weight: 400;
+  font-size: 14px;
+  background: #CA5027;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: 100%;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-title"] {
+  color: #214880;
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="chapter-overview"] {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="learning-objectives"] {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="paragraph-text"] {
+  color: #000000;
+  font-weight: 400;
+  font-size: 11px;
+  font-family: "Neue Kabel Regular", Arial, Helvetica, sans-serif;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="figure-caption"] .preview-figure-label {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="figure-caption"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-title"] {
+  color: #214880;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Lesson Overview is now a dual prefix/text component in Theme 2 (see
+   constants.js), reusing the same two-span markup as Figure Caption. */
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-overview"] .preview-figure-label {
+  color: #CA5027;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="lesson-overview"] .preview-figure-text {
+  color: #000000;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="section-title"] {
+  color: "#000000";
+  font-weight: 400;
+  font-size: 10px;
+}
+
+.component-card-preview[data-theme="theme2"][data-comp-id="sub-section-title"] {
+  color: #00854A;
+  font-weight: 700;
+  font-size: 12px;
 }
