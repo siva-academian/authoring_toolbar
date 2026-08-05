@@ -1,10 +1,10 @@
-export const OPENER_COMPONENTS = [
+export const THEME1_COMPONENTS = [
   {
     id: "chapter-number",
     label: "Chapter Number",
-    preview: "CHAPTER 01",
+    preview: "Chapter 1",
     category: "header",
-    placeholder: "CHAPTER 01",
+    placeholder: "Chapter 1",
   },
   {
     id: "chapter-title",
@@ -22,7 +22,7 @@ export const OPENER_COMPONENTS = [
   },
   {
     id: "lesson-overview",
-    label: "Lesson overview",
+    label: "Lesson Overview",
     preview: "1.1 Topic Title",
     category: "header",
     placeholder: "1.1 Topic Title",
@@ -35,24 +35,18 @@ export const OPENER_COMPONENTS = [
     placeholder: "1.1 Themes and Concepts of Biology",
   },
   {
-    id: "learning-objectives",
-    label: "learning objectives",
-    preview: "LEARNING OBJECTIVES",
-    category: "header",
-    placeholder: "LEARNING OBJECTIVES",
-  },
-  {
     id: "section-title",
     label: "Section Title",
     preview: "Properties of Life",
     category: "header",
     placeholder: "Properties of Life",
-  }, {
+  },
+  {
     id: "sub-section-title",
     label: "Sub Section Title",
-    preview: "order",
+    preview: "Order",
     category: "header",
-    placeholder: "order",
+    placeholder: "Order",
   },
   {
     id: "paragraph-text",
@@ -93,7 +87,7 @@ export const OPENER_COMPONENTS = [
   },
 ];
 
-export const OPENER_STYLES = {
+export const THEME1_STYLES = {
   chapterHeading: {
     font: "Arial",
     size: 15,
@@ -124,12 +118,6 @@ export const OPENER_STYLES = {
     color: "#0074BC",
     bold: false,
   },
-  learningObjectives: {
-    font: "Arial",
-    size: 9,
-    color: "#0074BC",
-    bold: true,
-  },
   sectionTitle: {
     font: "Arial",
     size: 11,
@@ -140,10 +128,12 @@ export const OPENER_STYLES = {
     font: "Arial",
     size: 9,
     color: "#0074BC",
-    bold: true,
+    bold: false,
   },
   paragrapghText: {
-    font: "Arial",
+    // Updated per style table: font family changed from "Arial" to
+    // "IBM Flex Sans Regular" for Theme 1 body paragraphs.
+    font: "IBM Flex Sans Regular,Arial",
     size: 9,
     color: "#000000",
     bold: false,
@@ -165,52 +155,48 @@ export const OPENER_STYLES = {
     size: 7.5,
     color: "#000000",
     bold: false,
-  }
+  },
 };
 
-export const OPENER_COMPONENT_CONFIG = {
+export const THEME1_COMPONENT_CONFIG = {
   "chapter-number": {
-    style: OPENER_STYLES.chapterHeading,
+    style: THEME1_STYLES.chapterHeading,
     allCaps: true,
   },
   "chapter-title": {
-    style: OPENER_STYLES.chapterTitle,
+    style: THEME1_STYLES.chapterTitle,
   },
   "chapter-overview": {
-    style: OPENER_STYLES.chapterOverview,
+    style: THEME1_STYLES.chapterOverview,
     allCaps: true,
   },
   "lesson-overview": {
-    style: OPENER_STYLES.lessonOverview,
+    style: THEME1_STYLES.lessonOverview,
   },
   "lesson-title": {
-    style: OPENER_STYLES.lessonTitle,
-    allCaps: true,
-  },
-  "learning-objectives": {
-    style: OPENER_STYLES.learningObjectives,
+    style: THEME1_STYLES.lessonTitle,
     allCaps: true,
   },
   "paragraph-text": {
-    style: OPENER_STYLES.paragrapghText,
+    style: THEME1_STYLES.paragrapghText,
   },
   "section-title": {
-    style: OPENER_STYLES.sectionTitle,
+    style: THEME1_STYLES.sectionTitle,
   },
   "sub-section-title": {
-    style: OPENER_STYLES.subSectionTitle,
+    style: THEME1_STYLES.subSectionTitle,
   },
   "figure-caption": {
     dual: {
       prefix: "FIGURE 1.1",
       text: " Caption text here.",
-      prefixStyle: OPENER_STYLES.imageFigureNumber,
-      textStyle: OPENER_STYLES.imageFigureText,
+      prefixStyle: THEME1_STYLES.imageFigureNumber,
+      textStyle: THEME1_STYLES.imageFigureText,
     }
-  }
+  },
 };
 
-export const NON_OPENER_COMPONENTS = [
+export const THEME2_COMPONENTS = [
   {
     id: "part-number",
     label: "Part Number",
@@ -226,18 +212,55 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "Chapter 1",
   },
   {
-    id: "lesson-title",
-    label: "Lesson Title",
-    preview: "An overview of Marketing",
+    id: "chapter-title",
+    label: "Chapter Title",
+    // Updated per style table: "An overview of Marketing" -> "An Overview of Marketing"
+    preview: "An Overview of Marketing",
     category: "header",
-    placeholder: "An overview of Marketing",
+    placeholder: "An Overview of Marketing",
   },
   {
-    id: "learning-objectives",
-    label: "learning objectives",
-    preview: "Learning Objectives",
+    // New per style table: Theme 2 now has its own "Chapter Overview"
+    // component alongside the existing "Learning Objectives" one. Added
+    // here rather than replacing "learning-objectives" below, since the
+    // table didn't say to remove or rename anything.
+    id: "chapter-overview",
+    label: "Chapter Overview",
+    preview: "Learning Outcomes",
     category: "header",
-    placeholder: "Learning Objectives",
+    placeholder: "Learning Outcomes",
+  },
+  {
+    // Updated per style table: Theme 2's Lesson Overview is now a dual
+    // (prefix + text) component, matching Figure Caption's pattern, so the
+    // "1-1" prefix can be styled separately from the rest of the text.
+    id: "lesson-overview",
+    label: "Lesson Overview",
+    preview: " Define the term marketing",
+    previewPrefix: "1-1",
+    category: "header",
+    placeholder: "1-1",
+  },
+  {
+    id: "lesson-title",
+    label: "Lesson Title",
+    preview: "1-1 What is Marketing",
+    category: "header",
+    placeholder: "1-1 What is Marketing",
+  },
+  {
+    id: "section-title",
+    label: "Section Title",
+    preview: "1-1 Define the term marketing ",
+    category: "header",
+    placeholder: "1-1 Define the term marketing ",
+  },
+  {
+    id: "sub-section-title",
+    label: "Sub Section Title",
+    preview: "1-2a Production Orientation",
+    category: "header",
+    placeholder: "1-2a Production Orientation",
   },
   {
     id: "paragraph-text",
@@ -247,50 +270,29 @@ export const NON_OPENER_COMPONENTS = [
     placeholder: "",
   },
   {
-    id: "sub-titles-list",
-    label: "Sub Titles List",
-    preview: "1.1 Define the term marketing",
-    category: "header",
-    placeholder: "",
-  },
-  {
-    id: "section-title",
-    label: "Section Title",
-    preview: "1-1 What is Marketing",
-    category: "header",
-    placeholder: "1-1 What is Marketing",
-  },
-  {
-    id: "sub-section-title",
-    label: "Sub Section Title",
-    preview: "1-1 Define the term marketing",
-    category: "header",
-    placeholder: "1-1 Define the term marketing",
-  },
-  {
-    id: "green-sub-section-title",
-    label: "Green Sub Section Title",
-    preview: "1-2a Production Orientation",
-    category: "header",
-    placeholder: "1-2a Production Orientation",
-  },
-  {
-    id: "sub-title",
-    label: "Sub Title",
-    preview: "Customer Value",
-    category: "header",
-    placeholder: "Customer Value",
-  },
-  {
     id: "image",
     label: "Image",
     preview: null,
     category: "text-media",
     placeholder: null,
   },
+  {
+    id: "quotation",
+    label: "Quotation",
+    preview: "“Quotation text goes here.”",
+    previewPrefix: null,
+    category: "text-media",
+    placeholder: "",
+  }, {
+    id: "footer",
+    label: "Footer",
+    preview: "Footer text goes here.",
+    category: "text-media",
+    placeholder: "",
+  },
 ];
 
-export const NON_OPENER_STYLES = {
+export const THEME2_STYLES = {
   partNumber: {
     font: "Arial",
     size: 24,
@@ -307,14 +309,15 @@ export const NON_OPENER_STYLES = {
     backgroundColor: "#CA5027",
   },
 
-  lessonTitle: {
+  chapterTitle: {
     font: "Arial",
     size: 44,
     color: "#214880",
     bold: false,
   },
 
-  learningObjectives: {
+  // New per style table: style for the new "chapter-overview" component.
+  chapterOverview: {
     font: "Arial",
     size: 15,
     color: "#CA5027",
@@ -322,13 +325,24 @@ export const NON_OPENER_STYLES = {
   },
 
   paragraphText: {
-    font: "Arial",
+    // Updated per style table: font family changed from "Arial" to
+    // "Neue Kabel Regular" for Theme 2 body paragraphs.
+    font: "Neue Kabel Regular, Arial",
     size: 10,
     color: "#000000",
     bold: false,
   },
 
-  subTitlesList: {
+  lessonTitle: {
+    font: "Arial",
+    size: 18,
+    color: "#214880",
+    bold: true,
+  },
+
+  // Updated per style table: now a dual (prefix + text) style, matching
+  // `caption` above, instead of a single flat style.
+  lessonOverview: {
     text: {
       font: "Arial",
       size: 11,
@@ -344,113 +358,128 @@ export const NON_OPENER_STYLES = {
   },
 
   sectionTitle: {
-    text: {
-      font: "Arial",
-      size: 17,
-      color: "#214880",
-      bold: true,
-    },
-    number: {
-      font: "Arial",
-      size: 18,
-      color: "#214880",
-      bold: true,
-    },
-  },
-
-  subSectionTitle: {
     font: "Arial",
     size: 10,
     color: "#000000",
-    bold: true,
+    bold: false,
   },
 
-  greenSubSectionTitle: {
+  subSectionTitle: {
     font: "Arial",
     size: 15,
     color: "#00854A",
     bold: true,
   },
 
-  subTitle: {
+  // New: Quotation styling for Theme 2 — see THEME1_STYLES.quotationText /
+  // quotationAuthor above for the rationale (kept as two separate style
+  // objects since the quote and author lines are two separate content
+  // controls).
+  quotationText: {
     font: "Arial",
-    size: 12,
-    color: "#CA5027",
+    size: 13,
+    color: "#000000",
+    bold: false,
+  },
+  quotationAuthor: {
+    font: "Arial",
+    size: 10,
+    color: "#000000",
+    bold: false,
+  },
+  footer: {
+    font: "Arial",
+    size: 9,
+    color: "#000000",
     bold: false,
   },
 };
 
-export const NON_OPENER_COMPONENT_CONFIG = {
+export const THEME2_COMPONENT_CONFIG = {
   "part-number": {
-    style: NON_OPENER_STYLES.partNumber,
+    style: THEME2_STYLES.partNumber,
   },
 
   "chapter-number": {
-    style: NON_OPENER_STYLES.chapterHeading,
+    style: THEME2_STYLES.chapterHeading,
   },
 
-  "lesson-title": {
-    style: NON_OPENER_STYLES.lessonTitle,
+  "chapter-title": {
+    style: THEME2_STYLES.chapterTitle,
   },
 
-  "learning-objectives": {
-    style: NON_OPENER_STYLES.learningObjectives,
+  "chapter-overview": {
+    style: THEME2_STYLES.chapterOverview,
   },
 
   "paragraph-text": {
-    style: NON_OPENER_STYLES.paragraphText,
+    style: THEME2_STYLES.paragraphText,
   },
 
-  "sub-titles-list": {
+  "lesson-title": {
+    style: THEME2_STYLES.lessonTitle,
+  },
+
+  "lesson-overview": {
     dual: {
-      prefix: "1.1",
+      prefix: "1-1",
       text: " Define the term marketing",
-      prefixStyle: NON_OPENER_STYLES.subTitlesList.number,
-      textStyle: NON_OPENER_STYLES.subTitlesList.text,
+      prefixStyle: THEME2_STYLES.lessonOverview.number,
+      textStyle: THEME2_STYLES.lessonOverview.text,
+    }
+  },
+
+  "lesson-title": {
+    style: THEME2_STYLES.lessonTitle,
+  },
+
+  "lesson-overview": {
+    dual: {
+      prefix: "1-1",
+      text: " Define the term marketing",
+      prefixStyle: THEME2_STYLES.lessonOverview.number,
+      textStyle: THEME2_STYLES.lessonOverview.text,
     }
   },
 
   "section-title": {
-    dual: {
-      prefix: "1.1",
-      text: " What is Marketing",
-      prefixStyle: NON_OPENER_STYLES.sectionTitle.number,
-      textStyle: NON_OPENER_STYLES.sectionTitle.text,
-    }
-    //style: NON_OPENER_STYLES.sectionTitle,
+    style: THEME2_STYLES.sectionTitle,
   },
 
   "sub-section-title": {
-    style: NON_OPENER_STYLES.subSectionTitle,
+    style: THEME2_STYLES.subSectionTitle,
   },
 
-  "green-sub-section-title": {
-    style: NON_OPENER_STYLES.greenSubSectionTitle,
+  // New: background/box color + per-line text styles used by
+  // insertQuotationAtTarget in App.js.
+  "quotation": {
+    backgroundColor: "#C1D4C3",
+    quoteStyle: THEME2_STYLES.quotationText,
+    authorStyle: THEME2_STYLES.quotationAuthor,
   },
-
-  "sub-title": {
-    style: NON_OPENER_STYLES.subTitle,
-  },
+  "footer": {
+    style: THEME2_STYLES.footer,
+  }
 };
 
-export const PAGE_TYPE = {
-  firstTheme: {
-    id: "first-theme",
+export const THEME_TYPE = {
+  theme1: {
+    id: "theme1",
     name: "Theme 1",
-    COMPONENTS: OPENER_COMPONENTS,
-    STYLES: OPENER_STYLES,
-    COMPONENT_CONFIG: OPENER_COMPONENT_CONFIG,
+    COMPONENTS: THEME1_COMPONENTS,
+    STYLES: THEME1_STYLES,
+    COMPONENT_CONFIG: THEME1_COMPONENT_CONFIG,
   },
-  secondTheme: {
-    id: "second-theme",
+  theme2: {
+    id: "theme2",
     name: "Theme 2",
-    COMPONENTS: NON_OPENER_COMPONENTS,
-    STYLES: NON_OPENER_STYLES,
-    COMPONENT_CONFIG: NON_OPENER_COMPONENT_CONFIG,
+    COMPONENTS: THEME2_COMPONENTS,
+    STYLES: THEME2_STYLES,
+    COMPONENT_CONFIG: THEME2_COMPONENT_CONFIG,
   },
 };
 
-export const DEFAULT_PAGE = "firstTheme";
+export const DEFAULT_THEME = "theme1";
 
 export const LAYOUT_COMPONENTS = [
   {

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import "./App.css";
-import { PAGE_TYPE, DEFAULT_PAGE, LAYOUT_COMPONENTS } from "./constants";
+import { THEME_TYPE, DEFAULT_THEME, LAYOUT_COMPONENTS } from "./constants";
 
 const REACT_APP_TENANT_ID = process.env.REACT_APP_TENANT_ID;
 const REACT_APP_BACKEND_BASE_URL = process.env.REACT_APP_BACKEND_BASE_URL;
@@ -15,7 +15,32 @@ const InstrcutionIcon = () => (
   </svg>
 );
 
-const renderComponentCard = ({ comp, loading, handleCardClick }) => {
+const ImageIcon = () => (
+  <svg width="60" height="60" viewBox="0 0 105 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M78.8553 42.6075V42.7373C72.7827 42.7373 67.0745 45.0769 62.7815 49.325C58.4873 53.5744 56.123 59.223 56.123 65.2321C56.123 69.7286 57.4478 74.0246 59.9141 77.6828H59.7574C59.6287 77.4911 59.5013 77.292 59.3765 77.0941C59.3625 77.0714 59.3485 77.0487 59.3344 77.026H12.5374C7.5234 77.026 3.44446 72.9897 3.44446 68.0281V12.4081C3.44446 7.44649 7.5234 3.41016 12.5374 3.41016H68.7433C73.7573 3.41016 77.8362 7.44649 77.8362 12.4081V42.6302C78.1738 42.615 78.5139 42.6075 78.8553 42.6075Z" fill="white" />
+    <path d="M81.2821 12.4078V42.8631C80.4821 42.7799 79.672 42.737 78.8554 42.737C78.4707 42.737 78.0872 42.7471 77.7064 42.766V12.4078C77.7064 7.51802 73.686 3.53967 68.7447 3.53967H12.5375C7.59612 3.53967 3.57577 7.51802 3.57577 12.4078V68.0265C3.57577 72.9162 7.59612 76.8946 12.5375 76.8946H59.4084C59.4339 76.9374 59.4607 76.9816 59.4874 77.0244C59.625 77.245 59.7677 77.4644 59.9142 77.6812C60.5638 78.6455 61.2938 79.5645 62.0989 80.4317H12.5375C5.62416 80.4317 0 74.8663 0 68.0252V12.4078C0 5.56666 5.62416 0 12.5375 0H68.7434C75.6567 0 81.2821 5.56666 81.2821 12.4078Z" fill="#CADDE8" />
+    <path d="M22.1847 15.0791C17.7593 15.0791 14.1593 18.6415 14.1593 23.0207C14.1593 27.3999 17.7593 30.9622 22.1847 30.9622C26.6102 30.9622 30.2101 27.3999 30.2101 23.0207C30.2101 18.6415 26.6102 15.0791 22.1847 15.0791Z" fill="#CADDE8" />
+    <path d="M62.7815 49.3243C58.4873 53.5737 56.123 59.2223 56.123 65.2314C56.123 69.4619 57.295 73.5133 59.4873 77.0253H12.5374C7.5234 77.0253 3.44446 72.9889 3.44446 68.0274V57.5949L20.4405 42.1454C21.4035 41.2706 22.8545 41.2706 23.8163 42.1454L34.978 52.2917L57.1536 32.1327C58.1166 31.2591 59.5676 31.2591 60.5293 32.1327L73.0146 43.4841C69.1777 44.4863 65.6618 46.4767 62.7815 49.3268V49.3243Z" fill="#CADDE8" />
+    <path d="M91.928 78.1668C99.1474 71.0228 99.1474 59.4401 91.928 52.2961C84.7086 45.1521 73.0036 45.1521 65.7842 52.2961C58.5648 59.4401 58.5648 71.0228 65.7842 78.1668C73.0036 85.3108 84.7086 85.3108 91.928 78.1668Z" fill="#CADDE8" />
+    <path d="M86.9179 65.3817C86.2211 64.6921 85.086 64.6921 84.3892 65.3817L80.644 69.0877V57.1048C80.644 56.1291 79.8415 55.335 78.8555 55.335C77.8695 55.335 77.067 56.1291 77.067 57.1048V69.0877L73.3218 65.3817C72.9728 65.0363 72.5154 64.8648 72.0581 64.8648C71.6008 64.8648 71.1422 65.0375 70.7944 65.3817C70.4569 65.7157 70.2709 66.1607 70.2709 66.6334C70.2709 67.1061 70.4569 67.5499 70.7944 67.8839L77.5918 74.6103C78.2886 75.2998 79.4237 75.2998 80.1205 74.6103L86.9179 67.8839C87.2554 67.5499 87.4414 67.1049 87.4414 66.6334C87.4414 66.162 87.2554 65.717 86.9179 65.3817Z" fill="white" />
+  </svg>
+);
+
+const LinkIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clip-path="url(#clip0_2367_1034)">
+      <path d="M25.3848 0C16.7745 0 9.76953 7.00496 9.76953 15.6152C9.76953 19.489 11.1881 23.0372 13.532 25.7695L11.9482 27.3532L10.2494 25.6544L0 35.9038L5.09622 41L15.3456 30.7506L13.6468 29.0518L15.2305 27.468C17.9628 29.8122 21.511 31.2305 25.3848 31.2305C33.995 31.2305 41 24.2255 41 15.6152C41 7.00496 33.995 0 25.3848 0ZM5.09622 37.6026L3.39738 35.9038L10.2494 29.0518L11.9479 30.7506L5.09622 37.6026ZM25.3848 28.8281C18.0992 28.8281 12.1719 22.9008 12.1719 15.6152C12.1719 8.32969 18.0992 2.40234 25.3848 2.40234C32.6703 2.40234 38.5977 8.32969 38.5977 15.6152C38.5977 22.9008 32.6703 28.8281 25.3848 28.8281Z" fill="#525099" />
+      <path d="M18.1777 9.60938H20.5801V13.8557L23.2192 15.6152L20.5801 17.3748V21.6211H18.1777V24.0234H32.5918V21.6211H30.1895V17.3748L27.5503 15.6152L30.1895 13.8557V9.60938H32.5918V7.20703H18.1777V9.60938ZM27.7871 18.6604V21.6211H22.9824V18.6604L25.3848 17.0588L27.7871 18.6604ZM27.7871 12.5701L25.3848 14.1716L22.9824 12.5701V9.60938H27.7871V12.5701Z" fill="#B12D2D" />
+    </g>
+    <defs>
+      <clipPath id="clip0_2367_1034">
+        <rect width="41" height="41" fill="white" />
+      </clipPath>
+    </defs>
+  </svg>
+);
+
+const renderComponentCard = ({ comp, loading, handleCardClick, themeId }) => {
   if (!comp || comp.id === "image" || comp.id === "logo-with-text") return null;
   const isActive = loading === comp.id;
 
@@ -23,7 +48,7 @@ const renderComponentCard = ({ comp, loading, handleCardClick }) => {
     <button
       key={comp.id}
       className={`component-card${isActive ? " component-card--loading" : ""}`}
-      onClick={() => handleCardClick(comp.id)}
+      onClick={() => handleCardClick(comp.id, themeId)}
       disabled={!!loading}
       aria-label={`Insert ${comp.label}`}
     >
@@ -36,12 +61,22 @@ const renderComponentCard = ({ comp, loading, handleCardClick }) => {
       {comp.preview && (
         <div className="component-card-preview-box">
           {comp.previewPrefix ? (
-            <span className="component-card-preview">
+            <span
+              className="component-card-preview"
+              data-comp-id={comp.id}
+              data-theme={themeId}
+            >
               <span className="preview-figure-label">{comp.previewPrefix} </span>
               <span className="preview-figure-text">{comp.preview}</span>
             </span>
           ) : (
-            <span className="component-card-preview">{comp.preview}</span>
+            <span
+              className="component-card-preview"
+              data-comp-id={comp.id}
+              data-theme={themeId}
+            >
+              {comp.preview}
+            </span>
           )}
         </div>
       )}
@@ -64,10 +99,23 @@ export default function App() {
   const [apiType, setApiType] = useState(null);
   const [debugInfo, setDebugInfo] = useState("");
   const userInfoRef = useRef({ tenantId: REACT_APP_TENANT_ID });
-  const [currentPage, setcurrentPage] = useState(DEFAULT_PAGE);
+  const [currentFilterTheme, setCurrentFilterTheme] = useState(
+    () => Office?.context?.document?.settings.get("theme") || DEFAULT_THEME
+  );
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableRows, setTableRows] = useState("2");
+  const [tableCols, setTableCols] = useState("2");
+  const abortControllerRef = useRef(null);
+  // Whenever at least one of our components exists anywhere in the
+  // document, the Filter dropdown locks to the theme those components
+  // belong to (the other theme's option becomes disabled) so the user
+  // can't mix stylings from both themes in the same file. Once every
+  // inserted component has been removed and the document is empty again,
+  // this flips back to false and both themes become selectable again.
+  const [hasAnyComponent, setHasAnyComponent] = useState(false);
 
   // ── Reliable "which container am I inserting into" tracking ──────────────
   // Word Online does not reliably preserve/restore the document selection
@@ -92,16 +140,28 @@ export default function App() {
   // somewhere else by hand.
   const activeComponentIdRef = useRef(null);
 
+  // ── Component metadata cache, keyed by content-control id ────────────────
+  // Whenever we insert (or later re-detect) a component we remember its
+  // parsed tag/meta here. This lets the DocumentSelectionChanged handler:
+  //   1. Re-apply that exact component's font/style to whatever text is now
+  //      inside it (typed or pasted), so pasted content always inherits the
+  //      component's look instead of the clipboard's own formatting.
+  //   2. Re-wrap content that Word "escaped" outside its content control
+  //      (see reclaimEscapedContent) using the SAME tag/meta it had before,
+  //      so the component keeps behaving exactly like it did originally.
+  const componentMetaCacheRef = useRef({});
+
   const pageConfig =
-    PAGE_TYPE[currentPage ?? DEFAULT_PAGE] ||
-    Object.values(PAGE_TYPE).find((page) => page.id === currentPage) ||
-    PAGE_TYPE[DEFAULT_PAGE];
+    THEME_TYPE[currentFilterTheme ?? DEFAULT_THEME] ||
+    Object.values(THEME_TYPE).find((page) => page.id === currentFilterTheme) ||
+    THEME_TYPE[DEFAULT_THEME];
   const {
     COMPONENTS,
     STYLES,
     COMPONENT_CONFIG,
   } = pageConfig;
 
+  // Runs once: create a stable document id if this doc doesn't have one yet.
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
     if (!docId) {
@@ -109,6 +169,20 @@ export default function App() {
       Office?.context?.document?.settings.set("appDocId", docId);
       Office?.context?.document?.settings.saveAsync();
     }
+  }, []);
+
+  // Runs every time the selected theme changes: keep it persisted.
+  React.useEffect(() => {
+    Office?.context?.document?.settings.set("theme", currentFilterTheme);
+    Office?.context?.document?.settings.saveAsync();
+  }, [currentFilterTheme]);
+
+  // On load, check whether the document already contains any of our
+  // components so the Filter dropdown starts out correctly locked (or
+  // unlocked) instead of always defaulting to "both themes selectable".
+  React.useEffect(() => {
+    refreshThemeLockState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Keep activeContainerIdRef / activeComponentIdRef in sync whenever the
@@ -125,15 +199,59 @@ export default function App() {
           if (container) {
             container.load("id");
             if (selectedComponent) {
-              selectedComponent.load("id");
+              selectedComponent.load("id,tag");
             }
             await context.sync();
+
+            let resolvedComponentId = selectedComponent ? selectedComponent.id : null;
+
+            if (!selectedComponent) {
+              // The cursor is on the container itself, not on any specific
+              // child component. If the component we were last on has
+              // since vanished, check whether Word "escaped" its pasted
+              // replacement text outside the content control (selecting
+              // 100% of a component's text and pasting deletes the
+              // now-empty control before the paste lands) and, if so,
+              // re-wrap that text with the same tag/meta so it keeps
+              // behaving like the original component.
+              const lastKnownComponentId = activeComponentIdRef.current;
+              const lastKnownMeta = lastKnownComponentId
+                ? componentMetaCacheRef.current[lastKnownComponentId]
+                : null;
+              if (lastKnownMeta) {
+                const stillExists = await getComponentById(context, lastKnownComponentId);
+                if (!stillExists) {
+                  const reclaimedCc = await reclaimEscapedContent(
+                    context,
+                    container,
+                    lastKnownMeta,
+                    componentMetaCacheRef
+                  );
+                  if (reclaimedCc) {
+                    resolvedComponentId = reclaimedCc.id;
+                  }
+                }
+              }
+            } else {
+              // Cursor settled on a real, existing component — re-apply
+              // its defined font/style to its whole text range. This is
+              // what makes newly typed or pasted text auto-format to
+              // match the component instead of keeping whatever
+              // formatting it arrived with (e.g. from the clipboard).
+              const meta = parseContentControlTag(selectedComponent.tag);
+              if (meta) {
+                componentMetaCacheRef.current[selectedComponent.id] = meta;
+                await reapplyStyleToComponent(context, selectedComponent, meta);
+                await context.sync();
+              }
+            }
+
             activeContainerIdRef.current = container.id;
             // selectedComponent is the specific child component the cursor
             // is currently inside (or null if the cursor is on the
             // container itself, not on any particular child) — either way
             // this reflects the true current state, so we always update it.
-            activeComponentIdRef.current = selectedComponent ? selectedComponent.id : null;
+            activeComponentIdRef.current = resolvedComponentId;
           }
           // If the click landed outside any container, we deliberately do
           // NOT clear activeContainerIdRef/activeComponentIdRef here — an
@@ -145,6 +263,12 @@ export default function App() {
       } catch (err) {
         // Non-fatal — selection tracking is best-effort.
       }
+
+      // Best-effort: also refresh the theme-lock state whenever the user
+      // clicks around the document. This is what picks up manual deletions
+      // (which don't go through our insert code) so the Filter dropdown
+      // re-enables once the document is empty of our components again.
+      refreshThemeLockState();
     };
 
     if (Office?.context?.document?.addHandlerAsync) {
@@ -165,6 +289,63 @@ export default function App() {
     };
   }, []);
 
+  // Scans the whole document for any of our components (any content
+  // control tagged with our schema) and figures out which theme they
+  // belong to. If we find at least one, we lock the Filter dropdown to
+  // that theme (disabling the other option) and make sure `currentFilterTheme`
+  // matches it — this also covers the case where the document already had
+  // content when the add-in was (re)loaded. If none are found, the
+  // document is effectively empty of our components and both themes
+  // become selectable again.
+  const refreshThemeLockState = async () => {
+    try {
+      await Word.run(async (context) => {
+        const contentControls = context.document.body.contentControls;
+        contentControls.load("items/tag");
+        await context.sync();
+        let foundThemeId = null;
+        let theme = null;
+        for (const cc of contentControls.items) {
+          const meta = parseContentControlTag(cc.tag);
+          // We only want to lock the Filter once an actual COMPONENT has been
+          // placed inside an Opener/Non-Opener — not merely because an (empty)
+          // Opener/Non-Opener container itself exists. Container content controls
+          // carry meta.container === true; every child component inserted inside
+          // one carries meta.container === false and can only ever have been
+          // created by inserting into an existing container (insertion outside a
+          // container throws OUTSIDE_CONTAINER), so finding one of these is a
+          // reliable signal that a container is no longer empty.
+          if (meta && !meta.container) {
+            const resolvedPage =
+              THEME_TYPE[theme] ||
+              Object.values(THEME_TYPE).find((p) => p.id === theme);
+            if (resolvedPage) {
+              foundThemeId = resolvedPage.id;
+              break;
+            }
+          } else if (theme === null && meta.container) {
+            theme = meta.theme
+          }
+        }
+
+        if (foundThemeId) {
+          setHasAnyComponent(true);
+          setCurrentFilterTheme((prev) => {
+            const prevResolved =
+              THEME_TYPE[prev] ||
+              Object.values(THEME_TYPE).find((p) => p.id === prev) ||
+              THEME_TYPE[DEFAULT_THEME];
+            return prevResolved.id === foundThemeId ? prev : foundThemeId;
+          });
+        } else {
+          setHasAnyComponent(false);
+        }
+      });
+    } catch (err) {
+      // Non-fatal — this is a best-effort UI lock, not core functionality.
+    }
+  };
+
   const log = (msg) =>
     setDebugInfo(
       (prev) =>
@@ -172,12 +353,8 @@ export default function App() {
         }\n` + prev
     );
 
-  // Build the layout object that will be embedded into every content-control tag
-  const buildLayoutContext = () => {
-    return currentPage;
-  };
-
   const handleCardClick = async (id,
+    currentFilterTheme = "",
     components = COMPONENTS,
     componentConfig = COMPONENT_CONFIG,
     styles = STYLES
@@ -195,15 +372,31 @@ export default function App() {
     setLoading(id);
     setStatus("");
     try {
+      if (id === "quotation") {
+        // Quotation needs its own insertion logic (two separately tagged
+        // content controls inside one bounding box) instead of the
+        // generic single-content-control insertComponent flow.
+        await insertQuotationComponent(
+          components,
+          componentConfig,
+          currentFilterTheme,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          componentMetaCacheRef
+        );
+        setStatus(`✓ "Quotation" inserted.`);
+        return;
+      }
       // Pass the current layout context so it gets embedded in the tag
       await insertComponent(
         id,
         components,
         componentConfig,
         styles,
-        buildLayoutContext(),
         activeContainerIdRef,
-        activeComponentIdRef
+        activeComponentIdRef,
+        currentFilterTheme,
+        componentMetaCacheRef
       );
       setStatus(`✓ "${components.find((c) => c.id === id)?.label}" inserted.`);
     } catch (err) {
@@ -216,6 +409,7 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -254,9 +448,10 @@ export default function App() {
         base64,
         linkImageFile.type,
         COMPONENTS,
-        buildLayoutContext(),
+        currentFilterTheme,
         activeContainerIdRef,
-        activeComponentIdRef
+        activeComponentIdRef,
+        componentMetaCacheRef
       );
       setStatus("✓ Logo with Text inserted.");
       setLinkImageFile(null);
@@ -272,6 +467,7 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -306,7 +502,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, buildLayoutContext(), activeContainerIdRef, activeComponentIdRef);
+      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -322,6 +518,40 @@ export default function App() {
     } finally {
       setLoading(null);
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
+    }
+  };
+
+  const handleTableClick = () => {
+    setShowTableModal(true);
+    setStatus("");
+  };
+
+  const handleTableInsert = async () => {
+    const rows = parseInt(tableRows, 10);
+    const cols = parseInt(tableCols, 10);
+    if (!rows || rows < 1 || !cols || cols < 1) {
+      setStatus("✗ Please enter valid rows and columns.");
+      return;
+    }
+    setLoading("table");
+    setStatus("");
+    try {
+      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
+      setStatus("✓ Table inserted.");
+      setShowTableModal(false);
+    } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setShowTableModal(false);
+        setPendingComponent("table");
+        setShowContainerModal(true);
+        return;
+      }
+      setStatus(`✗ Error: ${err.message || "Table insert failed."}`);
+    } finally {
+      setLoading(null);
+      setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -367,6 +597,16 @@ export default function App() {
   }
 
   const uploadDocument = async (clickType) => {
+    if (apiLoadingStatus) {
+      abortControllerRef.current?.abort();
+      setApiLoadingStatus(false);
+      setApiType(null);
+      return; // Prevent multiple simultaneous uploads
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setApiLoadingStatus(true);
     setApiType(clickType);
     try {
@@ -382,16 +622,26 @@ export default function App() {
       formData.append("file", file);
       const transformUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${docId}`;
       log(`Uploading to: ${transformUrl}`);
-      const response = await fetch(transformUrl, {
-        method: "POST",
-        body: formData,
-        signal: AbortSignal.timeout(30000)
-      }).catch((err) => {
+      let response;
+      try {
+        response = await fetch(transformUrl, {
+          method: "POST",
+          body: formData,
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(30000)
+          ])
+        });
+      } catch (err) {
+        if (err.name === "AbortError") {
+          log("extraction Upload cancelled.");
+          return;
+        }
         log(`Fetch error details: ${err.message}`);
         setApiLoadingStatus(false);
         setApiType(null);
         throw err;
-      });
+      };
       if (!response.ok) {
         log(`Upload HTTP error: ${response.status} ${response.statusText}`);
         return;
@@ -409,9 +659,15 @@ export default function App() {
 
       const pollStatus = async () => {
         while (true) {
+          if (controller.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
           const statusResponse = await fetch(statusUrl, {
             method: "GET",
-            signal: AbortSignal.timeout(30000)
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(30000)
+            ])
           });
 
           if (!statusResponse.ok) {
@@ -445,6 +701,7 @@ export default function App() {
       /* Status checking end */
 
       const webHeaders = new Headers();
+      const templateId = currentFilterTheme;
       webHeaders.append("Content-Type", "application/json");
       const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
       log(`Uploading to: ${webOutputUrl}`);
@@ -452,9 +709,16 @@ export default function App() {
         method: "POST",
         mode: "cors",
         headers: webHeaders,
-        body: JSON.stringify({ documentId: documentId, tenantId }),
-        signal: AbortSignal.timeout(30000)
+        body: JSON.stringify({ documentId: documentId, tenantId, templateId }),
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(30000)
+        ])
       }).catch((err) => {
+        if (err.name === "AbortError") {
+          log("Upload cancelled.");
+          return;
+        }
         setApiLoadingStatus(false);
         setApiType(null);
         log(`Web fetch error: ${err.message}`);
@@ -485,7 +749,7 @@ export default function App() {
     }
   };
 
-  const insertInsideNewContainer = async (containerType) => {
+  const insertInsideNewContainer = async (containerType, currentFilterTheme) => {
     try {
       setShowContainerModal(false);
       log(`[container-modal] click "${containerType}", pendingComponent="${pendingComponent}"`);
@@ -505,10 +769,11 @@ export default function App() {
           containerType,
           base64,
           COMPONENTS,
-          buildLayoutContext(),
           activeContainerIdRef,
           activeComponentIdRef,
-          log
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setImageFile(null);
         setImagePreview(null);
@@ -528,14 +793,49 @@ export default function App() {
           base64,
           linkImageFile.type,
           COMPONENTS,
-          buildLayoutContext(),
           activeContainerIdRef,
-          activeComponentIdRef
+          activeComponentIdRef,
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
         );
         setLinkImageFile(null);
         setLinkImagePreview(null);
         if (linkFileInputRef.current) linkFileInputRef.current.value = "";
         setStatus("✓ Logo with Text inserted.");
+      } else if (pendingComponent === "table") {
+        // Same pattern: create the container first, then insert the table
+        // (with its merged, centered header row) inside it.
+        const rows = parseInt(tableRows, 10) || 2;
+        const cols = parseInt(tableCols, 10) || 2;
+        await insertContainerThenTable(
+          containerType,
+          rows,
+          cols,
+          COMPONENTS,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
+        );
+        setShowTableModal(false);
+        setStatus("✓ Table inserted.");
+      } else if (pendingComponent === "quotation") {
+        // Same pattern: create the container first, then insert the
+        // quotation (quote line + author line, each separately tagged)
+        // inside it.
+        await insertContainerThenQuotation(
+          containerType,
+          COMPONENTS,
+          COMPONENT_CONFIG,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
+        );
+        setStatus("✓ Quotation inserted.");
       } else if (pendingComponent) {
         // pendingComponent was chosen from the currently active page's
         // component set, so reuse that exact set for the nested insert.
@@ -547,7 +847,9 @@ export default function App() {
           STYLES,
           activeContainerIdRef,
           activeComponentIdRef,
-          log
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
         );
       } else {
         await insertComponent(
@@ -559,9 +861,10 @@ export default function App() {
             }
           },
           {},
-          containerType,
           activeContainerIdRef,
-          activeComponentIdRef
+          activeComponentIdRef,
+          currentFilterTheme,
+          componentMetaCacheRef
         );
       }
 
@@ -580,6 +883,7 @@ export default function App() {
       setStatus(`✗ Error: ${err.message || "Something went wrong."}`);
     } finally {
       setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
     }
   };
 
@@ -627,6 +931,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "opener",
+                  currentFilterTheme,
                   LAYOUT_COMPONENTS,
                   {
                     opener: {
@@ -643,6 +948,7 @@ export default function App() {
                 className="layoutctl-segment"
                 onClick={() => handleCardClick(
                   "non-opener",
+                  currentFilterTheme,
                   LAYOUT_COMPONENTS,
                   {
                     "non-opener": {
@@ -663,11 +969,16 @@ export default function App() {
               <select
                 id="layoutctl-filter-select"
                 className="layoutctl-select"
-                value={currentPage}
-                onChange={(e) => setcurrentPage(e.target.value)}
+                value={currentFilterTheme}
+                onChange={(e) => setCurrentFilterTheme(e.target.value)}
+                title={hasAnyComponent ? "Remove all components to switch themes" : undefined}
               >
-                {Object.values(PAGE_TYPE).map((page) => (
-                  <option key={page.id} value={page.id}>
+                {Object.values(THEME_TYPE).map((page) => (
+                  <option
+                    key={page.id}
+                    value={page.id}
+                    disabled={hasAnyComponent && page.id !== pageConfig.id}
+                  >
                     {page.name}
                   </option>
                 ))}
@@ -697,7 +1008,7 @@ export default function App() {
               <h2 className="section-heading">Header</h2>
               <div className="card-grid">
                 {headerComponents.map((comp) =>
-                  renderComponentCard({ comp, loading, handleCardClick })
+                  renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
               </div>
             </section>
@@ -706,31 +1017,80 @@ export default function App() {
               <h2 className="section-heading">Text</h2>
               <div className="card-grid">
                 {textMediaComponents.map((comp) =>
-                  renderComponentCard({ comp, loading, handleCardClick })
+                  renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
+                )}
+                {currentFilterTheme === "theme2" && (
+                  <button
+                    className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
+                    onClick={handleTableClick}
+                    disabled={!!loading}
+                    aria-label="Insert Table"
+                  >
+                    <div className="component-card-top">
+                      <span className="component-card-label">
+                        {loading === "table" ? "Inserting…" : "Table"}
+                      </span>
+                    </div>
+                  </button>
                 )}
               </div>
             </section>
             <div className="section-divider" />
             <section className="component-section">
               <h2 className="section-heading">Media</h2>
-              <div className="card-grid">
-                {imageComponent && (
-                  <button
-                    key={imageComponent.id}
-                    className={`component-card${loading === "image" ? " component-card--loading" : ""}`}
-                    onClick={() => handleCardClick("image")}
-                    disabled={!!loading}
-                    aria-label={`Insert ${imageComponent.label}`}
-                  >
-                    <div className="component-card-top">
-                      <span className="component-card-label">
-                        {loading === "image" ? "Inserting…" : imageComponent.label}
-                      </span>
-                    </div>
-                  </button>
+              <section className="image-section">
+                <div
+                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
+                  onClick={() => fileInputRef.current.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
+                  ) : (
+                    <>
+                      {/* Image icon */}
+                      <div className="drop-zone-icon">
+                        {ImageIcon()}
+                      </div>
+                      <p className="drop-zone-title">Drag &amp; drop image here</p>
+                      <p className="drop-zone-subtitle">or browse files</p>
+                      <button
+                        className="insert-btn"
+                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
+                        disabled={loading === "figure-image"}
+                      >
+                        {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {imagePreview && (
+                  <div className="image-actions">
+                    <button
+                      className="insert-btn"
+                      onClick={handleImageInsert}
+                      disabled={!imageFile || loading === "figure-image"}
+                    >
+                      {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                    </button>
+                    <button
+                      className="cancel-btn"
+                      onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 )}
-              </div>
-
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+              </section>
               <div className="link-learning-panel">
                 <div className="link-learning-top">
                   <div>
@@ -748,7 +1108,7 @@ export default function App() {
                   <div className="link-learning-logo-box">
                     {linkImagePreview
                       ? <img src={linkImagePreview} alt="Logo with Text preview" />
-                      : <span>Logo</span>
+                      : <span>{LinkIcon()}</span>
                     }
                   </div>
                   <div className="link-learning-text-preview">Text with Icon</div>
@@ -806,18 +1166,18 @@ export default function App() {
           <section className="component-section publish-panel">
             <div className="publish-actions">
               <button
-                className="footer-btn footer-btn--pdf"
+                className={`footer-btn footer-btn--pdf ${apiLoadingStatus && apiType === "PDF" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("PDF")}
-                disabled={apiType === "WEB" || apiLoadingStatus}
+              // disabled={apiType === "WEB" || apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "PDF" ? "Generating…" : "Preview Lesson PDF"}
+                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Lesson PDF"}
               </button>
               <button
-                className="footer-btn footer-btn--web"
+                className={`footer-btn footer-btn--web ${apiLoadingStatus && apiType === "WEB" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("WEB")}
-                disabled={apiLoadingStatus}
+              // disabled={apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "WEB" ? "Generating…" : "Preview Lesson"}
+                {apiLoadingStatus && apiType === "WEB" ? "Cancel Lesson Generation.." : "Preview Lesson"}
               </button>
               <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
                 Export EPUB
@@ -840,77 +1200,54 @@ export default function App() {
         )}
       </main>
       {
-        showImageModal && (
-          <div className="container-modal-overlay" onClick={() => setShowImageModal(false)}>
+        showTableModal && (
+          <div className="container-modal-overlay" onClick={() => setShowTableModal(false)}>
             <div className="image-modal" onClick={(e) => e.stopPropagation()}>
               <div className="image-modal-header">
-                <h3>Insert Image</h3>
-                <button
-                  type="button"
-                  className="image-modal-close"
-                  aria-label="Close"
-                  onClick={() => setShowImageModal(false)}
-                >
-                  ×
-                </button>
+                <h3>Insert Table</h3>
               </div>
               <section className="image-section">
-                <div
-                  className={`drop-zone${isDragging ? " drop-zone--dragging" : ""}${imagePreview ? " drop-zone--has-image" : ""}`}
-                  onClick={() => fileInputRef.current.click()}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                >
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
-                  ) : (
-                    <>
-                      <div className="drop-zone-icon">
-                        <svg width="56" height="52" viewBox="0 0 56 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="4" y="4" width="44" height="36" rx="4" fill="#E0E0E0" stroke="#BDBDBD" strokeWidth="2" />
-                          <circle cx="16" cy="14" r="4" fill="#9E9E9E" />
-                          <path d="M4 32L16 20L24 28L34 16L48 34" stroke="#BDBDBD" strokeWidth="2" strokeLinejoin="round" />
-                          <circle cx="40" cy="38" r="10" fill="#555" stroke="white" strokeWidth="2" />
-                          <path d="M40 33V43M35 38H45" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                      <p className="drop-zone-title">Drag &amp; drop image here</p>
-                      <p className="drop-zone-subtitle">or browse files</p>
-                      <button
-                        className="insert-btn"
-                        onClick={(e) => { e.stopPropagation(); if (imageFile) handleImageInsert(); else fileInputRef.current.click(); }}
-                        disabled={loading === "image"}
-                      >
-                        {loading === "image" ? "Inserting…" : "Insert into Word"}
-                      </button>
-                    </>
-                  )}
+                <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Rows
+                    <input
+                      type="number"
+                      className="rows-input"
+                      min="1"
+                      max="20"
+                      value={tableRows}
+                      onChange={(e) => setTableRows(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Columns
+                    <input
+                      type="number"
+                      className="cols-input"
+                      min="1"
+                      max="10"
+                      value={tableCols}
+                      onChange={(e) => setTableCols(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
                 </div>
-                {imagePreview && (
-                  <div className="image-actions">
-                    <button
-                      className="insert-btn"
-                      onClick={handleImageInsert}
-                      disabled={!imageFile || loading === "image"}
-                    >
-                      {loading === "image" ? "Inserting…" : "Insert into Word"}
-                    </button>
-                    <button
-                      className="cancel-btn"
-                      onClick={() => { setImageFile(null); setImagePreview(null); }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  style={{ display: "none" }}
-                  onChange={handleFileChange}
-                />
+                <div className="image-actions">
+                  <button
+                    className="insert-btn"
+                    onClick={handleTableInsert}
+                    disabled={loading === "table"}
+                  >
+                    {loading === "table" ? "Inserting…" : "Insert into Word"}
+                  </button>
+                  <button
+                    className="cancel-btn"
+                    onClick={() => setShowTableModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </section>
             </div>
           </div>
@@ -925,12 +1262,12 @@ export default function App() {
                 This component must be placed inside an Opener or Non Opener.
               </p>
               <button
-                onClick={() => insertInsideNewContainer("opener")}
+                onClick={() => insertInsideNewContainer("opener", currentFilterTheme)}
               >
                 Opener
               </button>
               <button
-                onClick={() => insertInsideNewContainer("non-opener")}
+                onClick={() => insertInsideNewContainer("non-opener", currentFilterTheme)}
               >
                 Non Opener
               </button>
@@ -1162,9 +1499,9 @@ function wrapInContentControl(paragraph, meta) {
 
 /**
  * Builds the metadata object embedded in every content-control tag.*/
-function buildMeta(id, COMPONENTS, layoutContext) {
+function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   const comp = COMPONENTS.find((c) => c.id === id);
-
+  console.log({ comp }, { currentFilterTheme })
   return {
     type: id,
     label: comp?.label ?? id,
@@ -1173,11 +1510,144 @@ function buildMeta(id, COMPONENTS, layoutContext) {
     insertedAt: new Date().toISOString(),
     schema: "openstax-biology-chapter-formatter",
     placeholder: comp?.placeholder ?? "",
-    pageTypeFilter: layoutContext,
+    theme: currentFilterTheme,
     container: id === "opener" ||
       id === "non-opener" ||
       comp?.container === true
   };
+}
+
+/**
+ * Looks up the style/config that should be applied to a component's text,
+ * given only the meta that was embedded in its content-control tag at
+ * insertion time (meta.theme + meta.type). This lets us re-apply the
+ * correct formatting later — from the selection-changed handler, long
+ * after the original COMPONENTS/STYLES/COMPONENT_CONFIG closure that
+ * created it is gone — using only what's stored in the tag itself.
+ */
+function resolveThemePage(themeId) {
+  return (
+    THEME_TYPE[themeId] ||
+    Object.values(THEME_TYPE).find((p) => p.id === themeId) ||
+    THEME_TYPE[DEFAULT_THEME]
+  );
+}
+
+/**
+ * Re-applies a component's own defined font/style to its entire current
+ * text range. Safe to call after typing, pasting, or reclaiming escaped
+ * content — it always resets formatting back to what the component is
+ * supposed to look like, regardless of what formatting the new text
+ * arrived with (e.g. from a clipboard paste).
+ *
+ * Deliberately skipped for component types with bespoke, structural
+ * layouts (image captions, the icon-with-text table, and the multi-row
+ * table component) where blindly re-styling the whole range could damage
+ * the embedded picture/table rather than just its text.
+ *
+ * Also deliberately skipped for "dual" components (a single box that
+ * carries TWO distinct styles at once — e.g. a bold prefix label plus a
+ * differently-styled body, like the Lesson Overview component on Style 2)
+ * — since we only track ONE style per content control here, re-applying it
+ * across the whole range would blow away whichever of the two styles
+ * (prefix vs. text) currently occupies that portion of the box, silently
+ * turning a two-style component into a one-style one. Their formatting is
+ * instead left exactly as the user last set it, whether typed or pasted.
+ */
+async function reapplyStyleToComponent(context, cc, meta) {
+  if (!meta || meta.container) return;
+  if (meta.type === "image" || meta.type === "logo-with-text" || meta.type === "table") {
+    return;
+  }
+
+  const themePage = resolveThemePage(meta.theme);
+
+  if (meta.type === "quote-text" || meta.type === "quote-author") {
+    const quoteConfig = themePage?.COMPONENT_CONFIG?.["quotation"] || {};
+    const style = meta.type === "quote-text" ? quoteConfig.quoteStyle : quoteConfig.authorStyle;
+    applyQuoteFont(cc.getRange(), style || {});
+    return;
+  }
+
+  const config = themePage?.COMPONENT_CONFIG?.[meta.type] || {};
+
+  if (config.dual) {
+    // Hidden on purpose — see the note above the function.
+    return;
+  }
+
+  const range = cc.getRange();
+
+  if (meta.type === "bullet-list") {
+    applyStyle(range, themePage?.STYLES?.bullestList || {});
+    return;
+  }
+
+  applyStyle(range, config.style || {});
+}
+
+/**
+ * Handles the one Word paste quirk this add-in needs to guard against:
+ * selecting 100% of a component's text (including the trailing space right
+ * up to the content control's own boundary) and pasting. Word treats that
+ * as "delete the current selection, then insert the clipboard content" —
+ * and because every component content control has cannotDelete === false,
+ * deleting 100% of its content causes Word to automatically remove the
+ * (now-empty) content control before the paste lands. The pasted text then
+ * gets inserted as a plain, untagged paragraph sitting directly inside the
+ * container instead of inside a component.
+ *
+ * This looks for that exact aftermath — a real, untagged paragraph sitting
+ * as a direct child of the container, in the container's body — and
+ * re-wraps it with the SAME tag/meta the original component had, then
+ * re-applies that component's formatting. From the user's point of view
+ * the pasted text simply lands inside the same box, instead of escaping
+ * outside of it.
+ */
+async function reclaimEscapedContent(context, container, meta, componentMetaCacheRef) {
+  if (!meta) return null;
+
+  container.load("id");
+  const paragraphs = container.body.paragraphs;
+  paragraphs.load("items");
+  await context.sync();
+
+  for (const paragraph of paragraphs.items) {
+    const paragraphRange = paragraph.getRange();
+    paragraphRange.load("text");
+    const parentCc = paragraphRange.parentContentControlOrNullObject;
+    parentCc.load("isNullObject,id,tag");
+    // eslint-disable-next-line no-await-in-loop
+    await context.sync();
+
+    // A paragraph counts as "escaped" if its nearest surrounding content
+    // control is no longer the component we're looking for — either
+    // because there's no surrounding control at all beyond the top-level
+    // container (the common case), or because — for components like
+    // quote-text/quote-author that normally live one level deeper, inside
+    // their own "quotation" wrapper — the nearest control it's now sitting
+    // in is that outer wrapper rather than its own. Either way, real text
+    // sitting there that isn't already wrapped in a control of the exact
+    // same type is text Word "escaped" that we need to re-wrap.
+    const parentMeta = parentCc.isNullObject ? null : parseContentControlTag(parentCc.tag);
+    const isEscaped = !parentMeta || parentMeta.type !== meta.type;
+    const hasRealText = !!paragraphRange.text && paragraphRange.text.trim().length > 0;
+
+    if (isEscaped && hasRealText) {
+      const cc = wrapInContentControl(paragraph, meta);
+      await context.sync();
+      await reapplyStyleToComponent(context, cc, meta);
+      await context.sync();
+      cc.load("id");
+      await context.sync();
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+      return cc;
+    }
+  }
+
+  return null;
 }
 
 async function insertComponent(
@@ -1185,13 +1655,14 @@ async function insertComponent(
   COMPONENTS,
   COMPONENT_CONFIG,
   STYLES,
-  layoutContext,
   activeContainerIdRef,
-  activeComponentIdRef
+  activeComponentIdRef,
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef);
-    const meta = buildMeta(id, COMPONENTS, layoutContext);
+    const meta = buildMeta(id, COMPONENTS, currentFilterTheme);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
     const cc = await insertComponentAtTarget(target, context, id, meta, config, STYLES);
@@ -1215,6 +1686,9 @@ async function insertComponent(
         // click elsewhere first) lands right after it.
         activeComponentIdRef.current = cc.id;
       }
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1236,14 +1710,16 @@ async function insertComponentInsideNewContainer(
   childStyles,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
     log(`[nested-insert] inserting container "${containerType}"`);
 
     const containerCc = await insertStyledComponent(
@@ -1272,7 +1748,7 @@ async function insertComponentInsideNewContainer(
     //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
     const childTarget = { mode: "container", container: containerCc };
-    const childMeta = buildMeta(childId, childComponents, containerType);
+    const childMeta = buildMeta(childId, childComponents, currentFilterTheme);
     const childConfig = childComponentConfig[childId] || { style: {} };
 
     log(`[nested-insert] inserting child "${childId}"`);
@@ -1290,6 +1766,9 @@ async function insertComponentInsideNewContainer(
       childCc.load("id");
       await context.sync();
       activeComponentIdRef.current = childCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[childCc.id] = childMeta;
+      }
     }
     log(`[nested-insert] child inserted successfully`);
   });
@@ -1324,7 +1803,7 @@ async function insertStyledComponent(target, context, meta, config) {
   // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
-  const paragraph = createAnchorParagraph(target, initialText);
+  const paragraph = createAnchorParagraph(target, "");
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
   cc.tag = JSON.stringify(meta);
@@ -1339,9 +1818,9 @@ async function insertStyledComponent(target, context, meta, config) {
     // target for the next insert, not the document selection.
     return cc;
   }
-
-  const body = cc.getRange();
-  body.insertText(" ", Word.InsertLocation.end);
+  const body = paragraph.getRange();
+  // const body = cc.getRange();
+  // body.insertText(" ", Word.InsertLocation.end);
   if (config.style) {
     applyStyle(body, config.style);
   }
@@ -1358,6 +1837,20 @@ function applyStyle(range, style) {
   } else {
     range.font.highlightColor = "#FFFFFF";
   }
+}
+
+/**
+ * Same idea as applyStyle, but deliberately leaves font.highlightColor
+ * alone. Quotation's box background comes from paragraph.shading (a
+ * paragraph-level fill), and applyStyle's habit of forcing highlightColor
+ * to white when a style has no backgroundColor would paint a white
+ * highlight behind every character and wash out that shading.
+ */
+function applyQuoteFont(range, style = {}) {
+  range.font.name = style.font;
+  range.font.size = style.size;
+  range.font.color = style.color;
+  range.font.bold = style.bold || false;
 }
 
 async function insertDualTextComponent(target, context, meta, config) {
@@ -1413,9 +1906,9 @@ async function insertImageAtTarget(target, context, base64, meta) {
   return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContainerIdRef, activeComponentIdRef) {
+async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("image", COMPONENTS, layoutContext);
+    const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
@@ -1426,6 +1919,9 @@ async function insertFigureImage(base64, COMPONENTS, layoutContext, activeContai
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1439,15 +1935,16 @@ async function insertContainerThenImage(
   containerType,
   base64,
   COMPONENTS,
-  layoutContext,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1466,7 +1963,7 @@ async function insertContainerThenImage(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("image", COMPONENTS, containerType);
+    const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertImageAtTarget(childTarget, context, base64, meta);
 
@@ -1474,6 +1971,9 @@ async function insertContainerThenImage(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
     log(`[nested-insert] image inserted successfully`);
   });
@@ -1591,9 +2091,9 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
   return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, layoutContext, activeContainerIdRef, activeComponentIdRef) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
-    const meta = buildMeta("logo-with-text", COMPONENTS, layoutContext);
+    const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
@@ -1604,6 +2104,9 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
   });
 }
@@ -1619,15 +2122,16 @@ async function insertContainerThenLinkToLearning(
   base64,
   mimeType,
   COMPONENTS,
-  layoutContext,
   activeContainerIdRef,
   activeComponentIdRef,
-  log = () => { }
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, containerType);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
       containerTarget,
@@ -1646,7 +2150,7 @@ async function insertContainerThenLinkToLearning(
       activeComponentIdRef.current = null;
     }
 
-    const meta = buildMeta("logo-with-text", COMPONENTS, containerType);
+    const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
     const cc = await insertLinkToLearningAtTarget(childTarget, context, base64, mimeType, meta);
 
@@ -1654,8 +2158,278 @@ async function insertContainerThenLinkToLearning(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
     }
     log(`[nested-insert] logo-with-text inserted successfully`);
+  });
+}
+
+/**
+ * Core table insertion logic, decoupled from how the insertion target was
+ * resolved — same shared-core pattern used for images and logo-with-text.
+ *
+ * Uses the native Word.Table API (`Range.insertTable` + `Table.mergeCells`)
+ * instead of a hand-built OOXML fragment. Raw `<w:tbl>` OOXML fragments
+ * passed to `insertOoxml` are unreliable — they can silently fail or need
+ * several seconds/keystrokes to materialize, especially on Word Online —
+ * whereas `insertTable`/`mergeCells` are regular, fully-supported Word JS
+ * API calls (WordApi 1.4+) that behave the same on Desktop and Web.
+ */
+async function insertTableAtTarget(target, context, rows, cols, meta) {
+  // IMPORTANT: Word.Table has no insertContentControl() method — only
+  // Body/Paragraph/Range/ContentControl do. So we can't build the table
+  // first and wrap it afterwards (that silently threw and left a bare,
+  // unwrapped table behind). Instead we wrap the anchor paragraph in the
+  // content control FIRST, then use ContentControl.insertTable(...) — the
+  // API Word provides specifically for placing a table inside/next to an
+  // existing content control — so the table ends up properly bounded.
+  const anchorParagraph = createAnchorParagraph(target, "");
+  const cc = wrapInContentControl(anchorParagraph, meta);
+  await context.sync();
+
+  const data = Array.from({ length: rows }, () => Array.from({ length: cols }, () => " "));
+  const table = cc.insertTable(rows, cols, Word.InsertLocation.end, data);
+  await context.sync();
+
+  // Simple visible grid, matching the styling used elsewhere in the file.
+  [
+    Word.BorderLocation.top,
+    Word.BorderLocation.bottom,
+    Word.BorderLocation.left,
+    Word.BorderLocation.right,
+    Word.BorderLocation.insideHorizontal,
+    Word.BorderLocation.insideVertical,
+  ].forEach((borderLocation) => {
+    const border = table.getBorder(borderLocation);
+    border.type = Word.BorderType.single;
+    border.color = "#BFBFBF";
+  });
+
+  // Merge every cell in the first row into a single header cell spanning
+  // the full table width, then center and bold its text.
+  const headerCell = cols > 1 ? table.mergeCells(0, 0, 0, cols - 1) : table.getCell(0, 0);
+  headerCell.body.clear();
+  const headerRange = headerCell.body.insertText("Header", Word.InsertLocation.start);
+  headerRange.font.bold = true;
+  headerCell.body.paragraphs.getFirst().alignment = Word.Alignment.centered;
+  await context.sync();
+
+  return cc;
+}
+
+async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+  return Word.run(async (context) => {
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    // Same rule as every other component: if there's no active container to
+    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
+    // the user to pick/create an Opener or Non Opener first.
+    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef);
+    const cc = await insertTableAtTarget(target, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+    }
+  });
+}
+
+/**
+ * Creates a brand-new opener/non-opener container, then inserts the table
+ * inside it. Used by the "Select Container" modal when the pending
+ * component was a table and there was no active container to insert into.
+ */
+async function insertContainerThenTable(
+  containerType,
+  rows,
+  cols,
+  COMPONENTS,
+  activeContainerIdRef,
+  activeComponentIdRef,
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
+) {
+  return Word.run(async (context) => {
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
+
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} }
+    );
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
+
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+    if (activeComponentIdRef) {
+      activeComponentIdRef.current = null;
+    }
+
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    const childTarget = { mode: "container", container: containerCc };
+    const cc = await insertTableAtTarget(childTarget, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+    }
+    log(`[nested-insert] table inserted successfully`);
+  });
+}
+
+/**
+ * Core quotation insertion logic, decoupled from how the insertion target
+ * was resolved — same shared-core pattern used for images/tables.
+ *
+ * Produces ONE outer bounding content control (tag.type === "quotation")
+ * that contains two independently-tagged child content controls nested
+ * inside it: the quote line (tag.type === "quote-text") and the author
+ * line (tag.type === "quote-author", tag.parent === "quotation"). Keeping
+ * them as two separate content controls — instead of one blended
+ * paragraph like the figure-caption/lesson-overview "dual" pattern — is
+ * what lets the Python extraction pipeline pull the quote text and the
+ * author line out separately and hand back clean JSON.
+ */
+async function insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme) {
+  const backgroundColor = config.backgroundColor || "#C9D9C5";
+  const quoteStyle = config.quoteStyle || {};
+  const authorStyle = config.authorStyle || {};
+
+  // 1. The quote paragraph carries real content from the start and is
+  //    wrapped as the outer "quotation" box FIRST — this is the same
+  //    boundary-safe, no-leftover-blank-line pattern used for tables:
+  //    wrap real content, don't wrap-then-fill an empty placeholder.
+  const quotePara = createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
+  const outerMeta = buildMeta("quotation", COMPONENTS, currentFilterTheme);
+  const outerCc = wrapInContentControl(quotePara, outerMeta);
+  await context.sync();
+
+  // 2. Add the author line as a genuine second child of the outer CC via
+  //    ContentControl.insertParagraph — the same "sanctioned add-a-child"
+  //    method used for containers/tables elsewhere in this file.
+  const authorPara = outerCc.insertParagraph("\u2014Author Name, Source", Word.InsertLocation.end);
+  await context.sync();
+
+  // 3. Style both lines as one shared "box": same background shading and
+  //    side padding, with the quote/author fonts kept distinct.
+  [quotePara, authorPara].forEach((para) => {
+    para.leftIndent = 14;
+    para.rightIndent = 14;
+    para.shading.backgroundColor = backgroundColor;
+  });
+  quotePara.spaceBefore = 12;
+  quotePara.spaceAfter = 6;
+  authorPara.spaceBefore = 0;
+  authorPara.spaceAfter = 12;
+  applyQuoteFont(quotePara.getRange(), quoteStyle);
+  applyQuoteFont(authorPara.getRange(), authorStyle);
+  await context.sync();
+
+  // 4. Nest the quote and author lines EACH in their own content control,
+  //    tagged distinctly, inside the outer "quotation" content control.
+  const quoteMeta = { ...buildMeta("quote-text", [], currentFilterTheme), parent: "quotation" };
+  const quoteCc = wrapInContentControl(quotePara, quoteMeta);
+
+  const authorMeta = { ...buildMeta("quote-author", [], currentFilterTheme), parent: "quotation" };
+  const authorCc = wrapInContentControl(authorPara, authorMeta);
+
+  await context.sync();
+  return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta };
+}
+
+async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+  return Word.run(async (context) => {
+    // Same rule as every other component: if there's no active container to
+    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
+    // the user to pick/create an Opener or Non Opener first.
+    const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef);
+    const config = COMPONENT_CONFIG["quotation"] || {};
+    const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
+
+    if (activeComponentIdRef) {
+      outerCc.load("id");
+      quoteCc.load("id");
+      authorCc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = outerCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
+        componentMetaCacheRef.current[authorCc.id] = authorMeta;
+      }
+    }
+  });
+}
+
+/**
+ * Creates a brand-new opener/non-opener container, then inserts the
+ * quotation inside it. Used by the "Select Container" modal when the
+ * pending component was a quotation and there was no active container to
+ * insert into.
+ */
+async function insertContainerThenQuotation(
+  containerType,
+  COMPONENTS,
+  COMPONENT_CONFIG,
+  activeContainerIdRef,
+  activeComponentIdRef,
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
+) {
+  return Word.run(async (context) => {
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
+
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} }
+    );
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
+
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+    if (activeComponentIdRef) {
+      activeComponentIdRef.current = null;
+    }
+
+    const config = COMPONENT_CONFIG["quotation"] || {};
+    const childTarget = { mode: "container", container: containerCc };
+    const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(childTarget, context, COMPONENTS, config, currentFilterTheme);
+
+    if (activeComponentIdRef) {
+      outerCc.load("id");
+      quoteCc.load("id");
+      authorCc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = outerCc.id;
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
+        componentMetaCacheRef.current[authorCc.id] = authorMeta;
+      }
+    }
+    log(`[nested-insert] quotation inserted successfully`);
   });
 }
 
