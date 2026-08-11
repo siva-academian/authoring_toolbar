@@ -1529,7 +1529,7 @@ function resolveThemePage(themeId) {
   return (
     THEME_TYPE[themeId] ||
     Object.values(THEME_TYPE).find((p) => p.id === themeId) ||
-    THEME_TYPE[DEFAULT_THEME]
+    THEME_TYPE[currentFilterTheme] || THEME_TYPE[DEFAULT_THEME]
   );
 }
 
