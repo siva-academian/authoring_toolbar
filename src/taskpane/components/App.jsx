@@ -9,6 +9,20 @@ const CONTAINER_COMPONENT_IDS = ["opener", "non-opener"];
 
 const isContainerComponent = (id) => CONTAINER_COMPONENT_IDS.includes(id);
 
+/* ─── Image adjustment defaults / constants ──────────────────────────────── */
+// Shared min/max bounds for the width slider (as a percentage of the
+// figure's usual display width), used by both the taskpane UI and the
+// actual Word insert so the two always agree. Declared up top (rather than
+// down near insertImageAtTarget, where they used to live) so there's no
+// ambiguity about them being available to the App() component itself.
+const IMAGE_WIDTH_MIN_PCT = 10;
+const IMAGE_WIDTH_MAX_PCT = 100;
+const DEFAULT_IMAGE_SETTINGS = {
+  widthPct: 100,
+  altText: "",
+  position: "center", // "left" | "center" | "right"
+};
+
 const InstrcutionIcon = () => (
   <svg className="instruction-icon" width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M15 0C6.71543 0 0 6.71602 0 15C0 23.284 6.71543 30 15 30C23.2846 30 30 23.2846 30 15C30 6.71543 23.2846 0 15 0ZM15 7.5C16.0354 7.5 16.875 8.33965 16.875 9.375C16.875 10.4104 16.0354 11.25 15 11.25C13.9646 11.25 13.125 10.4109 13.125 9.375C13.125 8.33906 13.9646 7.5 15 7.5ZM17.8125 22.5H12.1875C11.6695 22.5 11.25 22.0805 11.25 21.5625C11.25 21.0445 11.6695 20.625 12.1875 20.625H13.125V15H12.1875C11.6695 15 11.25 14.5805 11.25 14.0625C11.25 13.5445 11.6695 13.125 12.1875 13.125H15.9375C16.4555 13.125 16.875 13.5445 16.875 14.0625V20.625H17.8125C18.3305 20.625 18.75 21.0445 18.75 21.5625C18.75 22.0805 18.3305 22.5 17.8125 22.5Z" fill="#0E236C" />
@@ -28,7 +42,7 @@ const ImageIcon = () => (
 
 const LinkIcon = () => (
   <svg width="20" height="20" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clip-path="url(#clip0_2367_1034)">
+    <g clipPath="url(#clip0_2367_1034)">
       <path d="M25.3848 0C16.7745 0 9.76953 7.00496 9.76953 15.6152C9.76953 19.489 11.1881 23.0372 13.532 25.7695L11.9482 27.3532L10.2494 25.6544L0 35.9038L5.09622 41L15.3456 30.7506L13.6468 29.0518L15.2305 27.468C17.9628 29.8122 21.511 31.2305 25.3848 31.2305C33.995 31.2305 41 24.2255 41 15.6152C41 7.00496 33.995 0 25.3848 0ZM5.09622 37.6026L3.39738 35.9038L10.2494 29.0518L11.9479 30.7506L5.09622 37.6026ZM25.3848 28.8281C18.0992 28.8281 12.1719 22.9008 12.1719 15.6152C12.1719 8.32969 18.0992 2.40234 25.3848 2.40234C32.6703 2.40234 38.5977 8.32969 38.5977 15.6152C38.5977 22.9008 32.6703 28.8281 25.3848 28.8281Z" fill="#525099" />
       <path d="M18.1777 9.60938H20.5801V13.8557L23.2192 15.6152L20.5801 17.3748V21.6211H18.1777V24.0234H32.5918V21.6211H30.1895V17.3748L27.5503 15.6152L30.1895 13.8557V9.60938H32.5918V7.20703H18.1777V9.60938ZM27.7871 18.6604V21.6211H22.9824V18.6604L25.3848 17.0588L27.7871 18.6604ZM27.7871 12.5701L25.3848 14.1716L22.9824 12.5701V9.60938H27.7871V12.5701Z" fill="#B12D2D" />
     </g>
@@ -90,6 +104,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("content");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  // Width (%), alt text, and position (left/center/right) chosen via the
+  // slider/fields under the image preview — read by handleImageInsert and
+  // insertInsideNewContainer so the picture is inserted into Word with
+  // exactly these settings applied.
+  const [imageSettings, setImageSettings] = useState(DEFAULT_IMAGE_SETTINGS);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const [linkImageFile, setLinkImageFile] = useState(null);
@@ -139,6 +158,22 @@ export default function App() {
   // from the DocumentSelectionChanged handler when the user clicks
   // somewhere else by hand.
   const activeComponentIdRef = useRef(null);
+
+  // ── Reliable "insert before or after the anchor component" tracking ──────
+  // activeComponentIdRef alone only tells us WHICH component to anchor the
+  // next insert to — it doesn't say whether the cursor sits before or
+  // after that component. When the cursor is directly inside a component's
+  // own content control, the answer is always "after" (siblings get added
+  // below the component being edited). But when the cursor is on the
+  // container itself — on a blank/raw line that isn't part of any
+  // component — the nearest anchor might be the component immediately
+  // BEFORE the cursor (insert after it) or, if the cursor sits above every
+  // component (e.g. the very first line of the container), the nearest
+  // component might be the one immediately AFTER the cursor (insert before
+  // it). This ref remembers which case we're in so the next insert lands
+  // exactly where the cursor was pointing instead of always being appended
+  // to the end of the container.
+  const activeAnchorPositionRef = useRef("after");
 
   // ── Component metadata cache, keyed by content-control id ────────────────
   // Whenever we insert (or later re-detect) a component we remember its
@@ -195,6 +230,7 @@ export default function App() {
       try {
         await Word.run(async (context) => {
           const selection = context.document.getSelection();
+          console.log({ selection })
           const { container, selectedComponent } = await getContentControlContext(context, selection);
           if (container) {
             container.load("id");
@@ -204,6 +240,7 @@ export default function App() {
             await context.sync();
 
             let resolvedComponentId = selectedComponent ? selectedComponent.id : null;
+            let resolvedAnchorPosition = "after";
 
             if (!selectedComponent) {
               // The cursor is on the container itself, not on any specific
@@ -218,10 +255,11 @@ export default function App() {
               const lastKnownMeta = lastKnownComponentId
                 ? componentMetaCacheRef.current[lastKnownComponentId]
                 : null;
+              let reclaimedCc = null;
               if (lastKnownMeta) {
                 const stillExists = await getComponentById(context, lastKnownComponentId);
                 if (!stillExists) {
-                  const reclaimedCc = await reclaimEscapedContent(
+                  reclaimedCc = await reclaimEscapedContent(
                     context,
                     container,
                     lastKnownMeta,
@@ -229,7 +267,38 @@ export default function App() {
                   );
                   if (reclaimedCc) {
                     resolvedComponentId = reclaimedCc.id;
+                    resolvedAnchorPosition = "after";
                   }
+                }
+              }
+
+              if (!reclaimedCc) {
+                // No escaped content to reclaim — figure out exactly where
+                // among the container's existing components the cursor is
+                // currently sitting, so the next insert lands right there
+                // instead of jumping to the end of the container. We look
+                // for the nearest component that ends BEFORE the cursor
+                // (insert after it) and, failing that, the nearest one
+                // that starts AFTER the cursor (insert before it, e.g. the
+                // cursor is on a blank line above every component).
+                const { precedingComponent, followingComponent } = await findAdjacentComponents(
+                  context,
+                  container,
+                  selection
+                );
+                if (precedingComponent) {
+                  precedingComponent.load("id");
+                  await context.sync();
+                  resolvedComponentId = precedingComponent.id;
+                  resolvedAnchorPosition = "after";
+                } else if (followingComponent) {
+                  followingComponent.load("id");
+                  await context.sync();
+                  resolvedComponentId = followingComponent.id;
+                  resolvedAnchorPosition = "before";
+                } else {
+                  resolvedComponentId = null;
+                  resolvedAnchorPosition = "after";
                 }
               }
             } else {
@@ -244,6 +313,7 @@ export default function App() {
                 await reapplyStyleToComponent(context, selectedComponent, meta);
                 await context.sync();
               }
+              resolvedAnchorPosition = "after";
             }
 
             activeContainerIdRef.current = container.id;
@@ -252,6 +322,7 @@ export default function App() {
             // container itself, not on any particular child) — either way
             // this reflects the true current state, so we always update it.
             activeComponentIdRef.current = resolvedComponentId;
+            activeAnchorPositionRef.current = resolvedAnchorPosition;
           }
           // If the click landed outside any container, we deliberately do
           // NOT clear activeContainerIdRef/activeComponentIdRef here — an
@@ -307,6 +378,7 @@ export default function App() {
         let theme = null;
         for (const cc of contentControls.items) {
           const meta = parseContentControlTag(cc.tag);
+          console.log({ meta })
           // We only want to lock the Filter once an actual COMPONENT has been
           // placed inside an Opener/Non-Opener — not merely because an (empty)
           // Opener/Non-Opener container itself exists. Container content controls
@@ -382,6 +454,7 @@ export default function App() {
           currentFilterTheme,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           componentMetaCacheRef
         );
         setStatus(`✓ "Quotation" inserted.`);
@@ -395,6 +468,7 @@ export default function App() {
         styles,
         activeContainerIdRef,
         activeComponentIdRef,
+        activeAnchorPositionRef,
         currentFilterTheme,
         componentMetaCacheRef
       );
@@ -417,6 +491,7 @@ export default function App() {
     const file = e.target.files[0];
     if (!file) return;
     setImageFile(file);
+    setImageSettings(DEFAULT_IMAGE_SETTINGS);
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -451,6 +526,7 @@ export default function App() {
         currentFilterTheme,
         activeContainerIdRef,
         activeComponentIdRef,
+        activeAnchorPositionRef,
         componentMetaCacheRef
       );
       setStatus("✓ Logo with Text inserted.");
@@ -481,6 +557,7 @@ export default function App() {
       return;
     }
     setImageFile(file);
+    setImageSettings(DEFAULT_IMAGE_SETTINGS);
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -502,7 +579,7 @@ export default function App() {
     setStatus("");
     try {
       const base64 = await fileToBase64(imageFile);
-      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
+      await insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef, imageSettings);
       setStatus("✓ Figure image inserted.");
       setImageFile(null);
       setImagePreview(null);
@@ -537,7 +614,7 @@ export default function App() {
     setLoading("table");
     setStatus("");
     try {
-      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef);
+      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef);
       setStatus("✓ Table inserted.");
       setShowTableModal(false);
     } catch (err) {
@@ -620,6 +697,12 @@ export default function App() {
       const file = await getCurrentWordFile();
       const formData = new FormData();
       formData.append("file", file);
+      // Include every tracked image's current width/alt-text/position
+      // metadata alongside the document upload, so the PDF/web generation
+      // pipeline can lay images out exactly as they appear in Word instead
+      // of falling back to whatever default the backend renderer assumes.
+      const imageMetadata = await collectImageMetadata();
+      formData.append("imageMetadata", JSON.stringify(imageMetadata));
       const transformUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${docId}`;
       log(`Uploading to: ${transformUrl}`);
       let response;
@@ -709,7 +792,7 @@ export default function App() {
         method: "POST",
         mode: "cors",
         headers: webHeaders,
-        body: JSON.stringify({ documentId: documentId, tenantId, templateId }),
+        body: JSON.stringify({ documentId: documentId, tenantId, templateId, imageMetadata }),
         signal: AbortSignal.any([
           controller.signal,
           AbortSignal.timeout(30000)
@@ -771,9 +854,11 @@ export default function App() {
           COMPONENTS,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           log,
           currentFilterTheme,
-          componentMetaCacheRef
+          componentMetaCacheRef,
+          imageSettings
         );
         setImageFile(null);
         setImagePreview(null);
@@ -795,6 +880,7 @@ export default function App() {
           COMPONENTS,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           log,
           currentFilterTheme,
           componentMetaCacheRef
@@ -815,6 +901,7 @@ export default function App() {
           COMPONENTS,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           log,
           currentFilterTheme,
           componentMetaCacheRef
@@ -831,6 +918,7 @@ export default function App() {
           COMPONENT_CONFIG,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           log,
           currentFilterTheme,
           componentMetaCacheRef
@@ -847,6 +935,7 @@ export default function App() {
           STYLES,
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           log,
           currentFilterTheme,
           componentMetaCacheRef
@@ -863,6 +952,7 @@ export default function App() {
           {},
           activeContainerIdRef,
           activeComponentIdRef,
+          activeAnchorPositionRef,
           currentFilterTheme,
           componentMetaCacheRef
         );
@@ -1047,7 +1137,17 @@ export default function App() {
                   onDragLeave={handleDragLeave}
                 >
                   {imagePreview ? (
-                    <img src={imagePreview} alt="preview" className="drop-zone-preview" />
+                    <img
+                      src={imagePreview}
+                      alt={imageSettings.altText || "preview"}
+                      className="drop-zone-preview"
+                      style={{
+                        width: `${imageSettings.widthPct}%`,
+                        marginLeft: imageSettings.position === "left" ? 0 : imageSettings.position === "right" ? "auto" : "auto",
+                        marginRight: imageSettings.position === "right" ? 0 : imageSettings.position === "left" ? "auto" : "auto",
+                        display: "block",
+                      }}
+                    />
                   ) : (
                     <>
                       {/* Image icon */}
@@ -1067,21 +1167,90 @@ export default function App() {
                   )}
                 </div>
                 {imagePreview && (
-                  <div className="image-actions">
-                    <button
-                      className="insert-btn"
-                      onClick={handleImageInsert}
-                      disabled={!imageFile || loading === "figure-image"}
+                  <>
+                    <div
+                      className="image-adjust-panel"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
-                    </button>
-                    <button
-                      className="cancel-btn"
-                      onClick={() => { setImageFile(null); setImagePreview(null); }}
-                    >
-                      Remove
-                    </button>
-                  </div>
+                      <div className="image-adjust-row">
+                        <label className="image-adjust-label" htmlFor="image-width-slider">
+                          Width :
+                        </label>
+                        <input
+                          id="image-width-slider"
+                          type="range"
+                          className="image-width-slider"
+                          min={IMAGE_WIDTH_MIN_PCT}
+                          max={IMAGE_WIDTH_MAX_PCT}
+                          step="1"
+                          value={imageSettings.widthPct}
+                          onChange={(e) =>
+                            setImageSettings((prev) => ({
+                              ...prev,
+                              widthPct: Number(e.target.value),
+                            }))
+                          }
+                        />
+                        <span className="image-adjust-value">{imageSettings.widthPct}%</span>
+                      </div>
+
+                      <div className="image-adjust-row">
+                        <label className="image-adjust-label" htmlFor="image-alt-text">
+                          Alt Text :
+                        </label>
+                        <input
+                          id="image-alt-text"
+                          type="text"
+                          className="image-alt-input"
+                          placeholder="Describe this image"
+                          value={imageSettings.altText}
+                          onChange={(e) =>
+                            setImageSettings((prev) => ({
+                              ...prev,
+                              altText: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="image-adjust-row">
+                        <span className="image-adjust-label">Position : </span>
+                        <div className="image-position-segmented" role="group" aria-label="Image position">
+                          {["left", "center", "right"].map((pos) => (
+                            <button
+                              key={pos}
+                              type="button"
+                              className={`image-position-segment${imageSettings.position === pos ? " image-position-segment--active" : ""}`}
+                              onClick={() =>
+                                setImageSettings((prev) => ({ ...prev, position: pos }))
+                              }
+                            >
+                              {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="image-actions">
+                      <button
+                        className="insert-btn"
+                        onClick={handleImageInsert}
+                        disabled={!imageFile || loading === "figure-image"}
+                      >
+                        {loading === "figure-image" ? "Inserting…" : "Insert into Word"}
+                      </button>
+                      <button
+                        className="cancel-btn"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          setImageSettings(DEFAULT_IMAGE_SETTINGS);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
                 )}
                 <input
                   ref={fileInputRef}
@@ -1329,6 +1498,67 @@ async function getContentControlContext(context, selection) {
 }
 
 /**
+ * Scans every top-level component (a direct-child content control of
+ * `container` whose meta identifies it as a real, non-container,
+ * non-nested-sub-part component) and, using Word's own
+ * `Range.compareLocationWith` comparison against the given cursor/selection
+ * range, finds:
+ *   - `precedingComponent`: the nearest component that ends BEFORE the
+ *     cursor (the last "Before" match in document order) — the anchor to
+ *     insert AFTER.
+ *   - `followingComponent`: the nearest component that starts AFTER the
+ *     cursor (the first "After" match in document order) — used as a
+ *     fallback anchor to insert BEFORE, for the case where the cursor is
+ *     above every existing component (e.g. a blank line at the very top of
+ *     the container).
+ *
+ * This is what lets a new component land exactly where the cursor is
+ * pointing within the container — instead of always being appended to the
+ * end — whenever the cursor itself isn't inside any specific component's
+ * own content control (see the "cursor is on the container itself" branch
+ * in the DocumentSelectionChanged handler, and the equivalent live-selection
+ * fallback in getInsertionTarget).
+ */
+async function findAdjacentComponents(context, container, selectionRange) {
+  const contentControls = container.contentControls;
+  contentControls.load("items");
+  await context.sync();
+
+  let precedingComponent = null;
+  let followingComponent = null;
+
+  for (const cc of contentControls.items) {
+    cc.load("tag,id");
+    // eslint-disable-next-line no-await-in-loop
+    await context.sync();
+    const meta = parseContentControlTag(cc.tag);
+    // Only consider genuine top-level components directly inside this
+    // container — skip nested containers (shouldn't occur here) and skip
+    // sub-parts like quote-text/quote-author that live nested inside their
+    // own "quotation" wrapper (meta.parent is set for those); the outer
+    // "quotation" control itself (no meta.parent) is what we want to match.
+    if (!meta || meta.container || meta.parent) continue;
+
+    const ccRange = cc.getRange();
+    const comparison = ccRange.compareLocationWith(selectionRange);
+    // eslint-disable-next-line no-await-in-loop
+    await context.sync();
+
+    const relation = comparison.value;
+    if (relation === "Before") {
+      // Items come back in document order, so the LAST "Before" match as we
+      // iterate forward is the nearest preceding component.
+      precedingComponent = cc;
+    } else if (relation === "After" && !followingComponent) {
+      // First "After" match in document order is the nearest following one.
+      followingComponent = cc;
+    }
+  }
+
+  return { precedingComponent, followingComponent };
+}
+
+/**
  * Always resolves to the LAST opener/non-opener content control in
  * document order — regardless of where the cursor/selection currently is.
  * This is what makes clicking "Opener"/"Non Opener" deterministic: it
@@ -1388,7 +1618,7 @@ async function getComponentById(context, componentId) {
  * content-range endpoints at a CC edge get interpreted inconsistently by
  * insertParagraph.
  *
- * Instead, for anything going inside a container we hand back either:
+ * Instead, for anything going inside a container we hand back one of:
  *   - the specific child ContentControl the cursor was last on
  *     (mode: "after-component") — the caller inserts the new paragraph as
  *     a SIBLING immediately after that component via
@@ -1396,13 +1626,19 @@ async function getComponentById(context, componentId) {
  *     in the middle of the existing components (right next to the one the
  *     cursor is on) instead of always being appended at the end, and
  *     without nesting inside that component.
+ *   - the nearest FOLLOWING component (mode: "before-component") — used
+ *     when the cursor sits above every existing component in the
+ *     container (e.g. a blank line at the very top) — inserts as a
+ *     SIBLING immediately before that component via
+ *     `component.insertParagraph(text, InsertLocation.before)`.
  *   - or the container itself (mode: "container") when there's no more
- *     specific active component to anchor to — the caller appends with
+ *     specific active component to anchor to (e.g. the container is still
+ *     completely empty) — the caller appends with
  *     `container.insertParagraph(text, InsertLocation.end)`, Word's own
  *     sanctioned "add a child to this content control" method, which isn't
  *     subject to the boundary ambiguity a derived Range has.
  */
-async function getInsertionTarget(context, componentId, activeContainerIdRef, activeComponentIdRef) {
+async function getInsertionTarget(context, componentId, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef) {
   if (isContainerComponent(componentId)) {
     const lastContainer = await getLastContainerControl(context);
 
@@ -1428,17 +1664,23 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
   const trackedContainer = await getContainerById(context, activeContainerId);
 
   if (trackedContainer) {
-    // 1a. Within that container, prefer inserting right after the specific
-    //     child component the cursor was last known to be on, so the new
-    //     component lands next to it (mid-container) instead of always
-    //     jumping to the end of the container.
+    // 1a. Within that container, prefer inserting right next to the
+    //     specific child component the cursor was last known to be on (or
+    //     the nearest component adjacent to a blank line the cursor was
+    //     on), using the position ("after"/"before") that was resolved by
+    //     the DocumentSelectionChanged handler at the time — so the new
+    //     component lands exactly where the cursor is pointing within the
+    //     container, instead of always jumping to the end.
     const trackedComponent = await getComponentById(context, activeComponentIdRef?.current);
     if (trackedComponent) {
-      return { mode: "after-component", component: trackedComponent, container: trackedContainer };
+      const anchorPosition = activeAnchorPositionRef?.current === "before" ? "before" : "after";
+      return anchorPosition === "before"
+        ? { mode: "before-component", component: trackedComponent, container: trackedContainer }
+        : { mode: "after-component", component: trackedComponent, container: trackedContainer };
     }
 
-    // No specific active component (e.g. cursor is on the container itself,
-    // or the container is still empty) — fall back to appending at the end.
+    // No specific active component tracked (e.g. the container is still
+    // completely empty) — fall back to appending at the end.
     return { mode: "container", container: trackedContainer };
   }
 
@@ -1459,6 +1701,18 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
     return { mode: "after-component", component: selectedComponent, container };
   }
 
+  // Cursor is on the container itself, not inside any specific component —
+  // resolve the nearest adjacent component from the live selection so the
+  // insert still lands where the cursor is pointing, same as the tracked
+  // path above.
+  const { precedingComponent, followingComponent } = await findAdjacentComponents(context, container, selection);
+  if (precedingComponent) {
+    return { mode: "after-component", component: precedingComponent, container };
+  }
+  if (followingComponent) {
+    return { mode: "before-component", component: followingComponent, container };
+  }
+
   return { mode: "container", container };
 }
 
@@ -1472,6 +1726,8 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
  *    InsertLocation.after)` on the specific child component the cursor was
  *    last on, adding the new paragraph as a sibling immediately after it
  *    (never nested inside it).
+ *  - "before-component": same idea, but `InsertLocation.before` — used
+ *    when the cursor is above every existing component in the container.
  *  - "container": `ContentControl.insertParagraph`, which safely adds a
  *    new child paragraph inside that specific content control regardless
  *    of whether it already has content, without touching a derived Range
@@ -1480,6 +1736,9 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
 function createAnchorParagraph(target, initialText) {
   if (target.mode === "after-component") {
     return target.component.insertParagraph(initialText ?? "", Word.InsertLocation.after);
+  }
+  if (target.mode === "before-component") {
+    return target.component.insertParagraph(initialText ?? "", Word.InsertLocation.before);
   }
   if (target.mode === "container") {
     return target.container.insertParagraph(initialText ?? "", Word.InsertLocation.end);
@@ -1501,7 +1760,7 @@ function wrapInContentControl(paragraph, meta) {
  * Builds the metadata object embedded in every content-control tag.*/
 function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   const comp = COMPONENTS.find((c) => c.id === id);
-  console.log({ comp }, { currentFilterTheme })
+  console.log({ comp })
   return {
     type: id,
     label: comp?.label ?? id,
@@ -1657,11 +1916,12 @@ async function insertComponent(
   STYLES,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   currentFilterTheme,
   componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
-    const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef);
+    const target = await getInsertionTarget(context, id, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const meta = buildMeta(id, COMPONENTS, currentFilterTheme);
     const config = COMPONENT_CONFIG[id] || { style: {} };
 
@@ -1685,6 +1945,9 @@ async function insertComponent(
         // "cursor is here" anchor, so the next insert (if the user doesn't
         // click elsewhere first) lands right after it.
         activeComponentIdRef.current = cc.id;
+        if (activeAnchorPositionRef) {
+          activeAnchorPositionRef.current = "after";
+        }
       }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
@@ -1710,6 +1973,7 @@ async function insertComponentInsideNewContainer(
   childStyles,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   log = () => { },
   currentFilterTheme,
   componentMetaCacheRef
@@ -1718,7 +1982,7 @@ async function insertComponentInsideNewContainer(
     // 1. Create the container itself (opener / non-opener), always appended
     //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
     log(`[nested-insert] inserting container "${containerType}"`);
 
@@ -1739,6 +2003,9 @@ async function insertComponentInsideNewContainer(
     }
     if (activeComponentIdRef) {
       activeComponentIdRef.current = null;
+    }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
     }
 
     // 2. Insert the child directly into the container we just created.
@@ -1766,6 +2033,9 @@ async function insertComponentInsideNewContainer(
       childCc.load("id");
       await context.sync();
       activeComponentIdRef.current = childCc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[childCc.id] = childMeta;
       }
@@ -1871,13 +2141,30 @@ async function insertDualTextComponent(target, context, meta, config) {
  * container/component is already active) and insertContainerThenImage
  * (creates a brand-new container first, then inserts into it) so the two
  * flows can never drift apart.
+ *
+ * `imageSettings` (widthPct / altText / position) — chosen by the user via
+ * the width slider, alt-text field, and position toggle in the taskpane —
+ * are applied to both the inline picture itself (actual Word width/
+ * alignment/altTextDescription) AND embedded into the wrapping content
+ * control's tag, so they survive round-trips and can be read back out
+ * later (see readImageSettingsFromMeta / collectImageMetadata) whenever
+ * the user manually resizes/repositions the picture in Word itself, and so
+ * they can be handed to the backend PDF/web-view generators.
  */
-async function insertImageAtTarget(target, context, base64, meta) {
+async function insertImageAtTarget(target, context, base64, meta, imageSettings = DEFAULT_IMAGE_SETTINGS) {
+  const settings = { ...DEFAULT_IMAGE_SETTINGS, ...imageSettings };
+  const widthPct = clampImageWidthPct(settings.widthPct);
+
   // 1. Create the anchor paragraph and insert the image into it.
   const imagePara = createAnchorParagraph(target, "");
   const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
-  img.width = 414;
-  img.alignment = Word.Alignment.centered;
+  // Word's inline picture width is in points, not a percentage — 414pt was
+  // the previous fixed width and stands in for "100% of the figure's usual
+  // display width" here, so widthPct scales relative to that same 414pt
+  // baseline (e.g. 50% -> 207pt).
+  img.width = Math.round((widthPct / 100) * 414);
+  img.altTextDescription = settings.altText || "";
+  imagePara.alignment = resolveWordAlignment(settings.position);
   await context.sync();
 
   // 2. Wrap ONLY the image paragraph in its content control first — same
@@ -1888,7 +2175,8 @@ async function insertImageAtTarget(target, context, base64, meta) {
   //    surrounding container's own boundary on Word Web, which is what
   //    caused the figure content control to wrap the whole container
   //    instead of just the image + caption.
-  const cc = wrapInContentControl(imagePara, meta);
+  const meta_ = { ...meta, image: { widthPct, altText: settings.altText || "", position: settings.position } };
+  const cc = wrapInContentControl(imagePara, meta_);
   await context.sync();
 
   // 3. Add the caption as a genuine child of the figure's own content
@@ -1897,6 +2185,13 @@ async function insertImageAtTarget(target, context, base64, meta) {
   //    elsewhere in the file — so the caption ends up nested inside the
   //    figure's cc, not outside it.
   const captionPara = cc.insertParagraph(" Caption text here.", Word.InsertLocation.end);
+  // A new paragraph inserted this way inherits the formatting of the
+  // paragraph before it — here, the image paragraph, whose alignment was
+  // just set to left/center/right per the chosen position. The caption
+  // must always start at the beginning of the line regardless of where
+  // the image itself is positioned, so pin it explicitly instead of
+  // letting it silently follow the image's alignment.
+  captionPara.alignment = Word.Alignment.left;
   const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
   caption.font.bold = true;
   caption.font.color = "#C00000";
@@ -1906,21 +2201,42 @@ async function insertImageAtTarget(target, context, base64, meta) {
   return cc;
 }
 
-async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+function clampImageWidthPct(value) {
+  const num = Number(value);
+  if (Number.isNaN(num)) return DEFAULT_IMAGE_SETTINGS.widthPct;
+  return Math.min(IMAGE_WIDTH_MAX_PCT, Math.max(IMAGE_WIDTH_MIN_PCT, Math.round(num)));
+}
+
+function resolveWordAlignment(position) {
+  if (position === "left") return Word.Alignment.left;
+  if (position === "right") return Word.Alignment.right;
+  return Word.Alignment.centered;
+}
+
+function resolvePositionFromWordAlignment(alignment) {
+  if (alignment === Word.Alignment.left || alignment === "Left") return "left";
+  if (alignment === Word.Alignment.right || alignment === "Right") return "right";
+  return "center";
+}
+
+async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef, imageSettings) {
   return Word.run(async (context) => {
     const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
-    const target = await getInsertionTarget(context, "image", activeContainerIdRef, activeComponentIdRef);
-    const cc = await insertImageAtTarget(target, context, base64, meta);
+    const target = await getInsertionTarget(context, "image", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
+    const cc = await insertImageAtTarget(target, context, base64, meta, imageSettings);
 
     if (cc && activeComponentIdRef) {
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
-        componentMetaCacheRef.current[cc.id] = meta;
+        componentMetaCacheRef.current[cc.id] = { ...meta, image: imageSettings };
       }
     }
   });
@@ -1937,13 +2253,15 @@ async function insertContainerThenImage(
   COMPONENTS,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   log = () => { },
   currentFilterTheme,
-  componentMetaCacheRef
+  componentMetaCacheRef,
+  imageSettings
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
@@ -1962,17 +2280,23 @@ async function insertContainerThenImage(
     if (activeComponentIdRef) {
       activeComponentIdRef.current = null;
     }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
+    }
 
     const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
-    const cc = await insertImageAtTarget(childTarget, context, base64, meta);
+    const cc = await insertImageAtTarget(childTarget, context, base64, meta, imageSettings);
 
     if (cc && activeComponentIdRef) {
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
-        componentMetaCacheRef.current[cc.id] = meta;
+        componentMetaCacheRef.current[cc.id] = { ...meta, image: imageSettings };
       }
     }
     log(`[nested-insert] image inserted successfully`);
@@ -2091,19 +2415,22 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
   return cc;
 }
 
-async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
-    const target = await getInsertionTarget(context, "logo-with-text", activeContainerIdRef, activeComponentIdRef);
+    const target = await getInsertionTarget(context, "logo-with-text", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const cc = await insertLinkToLearningAtTarget(target, context, base64, mimeType, meta);
 
     if (cc && activeComponentIdRef) {
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
@@ -2124,13 +2451,14 @@ async function insertContainerThenLinkToLearning(
   COMPONENTS,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   log = () => { },
   currentFilterTheme,
   componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
@@ -2149,6 +2477,9 @@ async function insertContainerThenLinkToLearning(
     if (activeComponentIdRef) {
       activeComponentIdRef.current = null;
     }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
+    }
 
     const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
@@ -2158,6 +2489,9 @@ async function insertContainerThenLinkToLearning(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
@@ -2219,19 +2553,22 @@ async function insertTableAtTarget(target, context, rows, cols, meta) {
   return cc;
 }
 
-async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
-    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef);
+    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const cc = await insertTableAtTarget(target, context, rows, cols, meta);
 
     if (cc && activeComponentIdRef) {
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
@@ -2251,13 +2588,14 @@ async function insertContainerThenTable(
   COMPONENTS,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   log = () => { },
   currentFilterTheme,
   componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
@@ -2276,6 +2614,9 @@ async function insertContainerThenTable(
     if (activeComponentIdRef) {
       activeComponentIdRef.current = null;
     }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
+    }
 
     const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
     const childTarget = { mode: "container", container: containerCc };
@@ -2285,6 +2626,9 @@ async function insertContainerThenTable(
       cc.load("id");
       await context.sync();
       activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
@@ -2353,12 +2697,12 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta };
 }
 
-async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, componentMetaCacheRef) {
+async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     // Same rule as every other component: if there's no active container to
     // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
     // the user to pick/create an Opener or Non Opener first.
-    const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef);
+    const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const config = COMPONENT_CONFIG["quotation"] || {};
     const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
 
@@ -2368,6 +2712,9 @@ async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFil
       authorCc.load("id");
       await context.sync();
       activeComponentIdRef.current = outerCc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
@@ -2388,13 +2735,14 @@ async function insertContainerThenQuotation(
   COMPONENT_CONFIG,
   activeContainerIdRef,
   activeComponentIdRef,
+  activeAnchorPositionRef,
   log = () => { },
   currentFilterTheme,
   componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
     log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
 
     const containerCc = await insertStyledComponent(
@@ -2413,6 +2761,9 @@ async function insertContainerThenQuotation(
     if (activeComponentIdRef) {
       activeComponentIdRef.current = null;
     }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
+    }
 
     const config = COMPONENT_CONFIG["quotation"] || {};
     const childTarget = { mode: "container", container: containerCc };
@@ -2424,6 +2775,9 @@ async function insertContainerThenQuotation(
       authorCc.load("id");
       await context.sync();
       activeComponentIdRef.current = outerCc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
@@ -2431,6 +2785,63 @@ async function insertContainerThenQuotation(
     }
     log(`[nested-insert] quotation inserted successfully`);
   });
+}
+
+/**
+ * Scans the whole document for every image-type content control (tag.type
+ * === "image") and reads back its CURRENT live width/alt-text/position
+ * straight from the actual Word inline picture and paragraph alignment —
+ * not from our cached meta — so that if the user manually resized,
+ * retyped alt text via Word's own "Edit Alt Text" pane, or realigned the
+ * picture directly in Word (instead of using our slider/fields), those
+ * manual changes are still picked up and reflected correctly.
+ *
+ * The width is reported back as a percentage using the same 414pt
+ * baseline used when inserting (see insertImageAtTarget), so it lines up
+ * with the widthPct scale the slider uses.
+ *
+ * Called right before uploading the document for PDF/web generation so
+ * the backend renderers can lay out each figure exactly as it currently
+ * looks in Word.
+ */
+async function collectImageMetadata() {
+  const metadata = [];
+  try {
+    await Word.run(async (context) => {
+      const contentControls = context.document.body.contentControls;
+      contentControls.load("items/id,items/tag");
+      await context.sync();
+
+      for (const cc of contentControls.items) {
+        const meta = parseContentControlTag(cc.tag);
+        if (!meta || meta.type !== "image") continue;
+
+        const pictures = cc.inlinePictures;
+        pictures.load("items/width,items/altTextDescription");
+        const paragraphs = cc.body.paragraphs;
+        paragraphs.load("items/alignment");
+        // eslint-disable-next-line no-await-in-loop
+        await context.sync();
+
+        const picture = pictures.items[0];
+        const paragraph = paragraphs.items[0];
+        const widthPct = picture ? clampImageWidthPct((picture.width / 414) * 100) : (meta.image?.widthPct ?? DEFAULT_IMAGE_SETTINGS.widthPct);
+        const altText = picture ? (picture.altTextDescription || "") : (meta.image?.altText ?? "");
+        const position = paragraph ? resolvePositionFromWordAlignment(paragraph.alignment) : (meta.image?.position ?? DEFAULT_IMAGE_SETTINGS.position);
+
+        metadata.push({
+          id: cc.id,
+          widthPct,
+          altText,
+          position,
+        });
+      }
+    });
+  } catch (err) {
+    // Best-effort — if this fails for any reason, ship the upload without
+    // per-image metadata rather than blocking the whole publish flow.
+  }
+  return metadata;
 }
 
 async function getCursorRange(context) {

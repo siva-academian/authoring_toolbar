@@ -590,20 +590,26 @@ layoutctl-panel {
   flex-direction: column;
   gap: 16px;
   align-items: stretch;
+  border: 1px solid #9C9C9C;
+  border-radius: 20px;
+  padding: 12px;
 }
 
 .drop-zone {
   background: #fff;
-  border-radius: 20px;
-  border: 1px solid #9C9C9C;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 10px;
+  /* padding: 8px; */
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
+
+  &.drop-zone--has-image {
+    border-radius: 8px;
+    border: 1px solid #9C9C9C;
+  }
 }
 
 .drop-zone:hover {
@@ -615,13 +621,6 @@ layoutctl-panel {
   border-color: #00c4b0;
   background: #edfaf8;
   border-style: solid;
-}
-
-.drop-zone--has-image {
-  padding: 12px;
-  gap: 0;
-  border-style: solid;
-  border-color: #c8d8de;
 }
 
 .drop-zone-icon {
@@ -641,9 +640,8 @@ layoutctl-panel {
 
 .drop-zone-preview {
   width: 100%;
-  height: 240px;
   object-fit: contain;
-  border-radius: 8px;
+  padding: 8px;
 }
 
 .image-actions {
@@ -1054,4 +1052,158 @@ layoutctl-panel {
   color: #00854A;
   font-weight: 700;
   font-size: 12px;
+}
+
+/* ===========================================================
+   Image adjustment panel (width slider / alt text / position)
+   -----------------------------------------------------------
+   Shown under the image preview once a file is selected, above the
+   "Insert into Word" / "Remove" action row. Lets the user set the
+   figure's display width, alt text, and left/center/right position
+   before inserting — these are read by handleImageInsert and applied
+   to the actual Word inline picture, and also sent to the backend
+   alongside the document upload for PDF/web generation.
+=========================================================== */
+.image-adjust-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.image-adjust-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center !important;
+  text-align: center;
+}
+
+.image-adjust-row:has(.image-alt-input),
+.image-adjust-row:has(.image-position-segmented) {
+  align-items: flex-start;
+}
+
+.image-adjust-label {
+  flex: 0 0 60px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  padding-top: 2px;
+}
+
+/* ─── Width slider ───────────────────────────────────────────────────────── */
+.image-width-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: #DCD9D9;
+  outline: none;
+  cursor: pointer;
+}
+
+.image-width-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1a75f0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #1a75f0;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.image-width-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.image-width-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1a75f0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #1a75f0;
+  cursor: pointer;
+}
+
+.image-width-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: #DCD9D9;
+}
+
+.image-adjust-value {
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* ─── Alt text ───────────────────────────────────────────────────────────── */
+.image-alt-input {
+  flex: 1;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #DCD9D9;
+  border-radius: 8px;
+  transition: border-color 0.15s;
+}
+
+.image-alt-input:hover {
+  border-color: #b7b7b7;
+}
+
+.image-alt-input:focus {
+  outline: none;
+  border-color: #1a75f0;
+  box-shadow: 0 0 0 2px rgba(26, 117, 240, 0.15);
+}
+
+.image-alt-input::placeholder {
+  color: #999;
+}
+
+/* ─── Position: bordered, rounded buttons ───────────────────────────────── */
+.image-position-segmented {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.image-position-segment {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333333;
+  background: #fff;
+  border: 1.5px solid #DCD9D9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.image-position-segment:hover {
+  border-color: #1a75f0;
+  color: #1a75f0;
+}
+
+.image-position-segment--active {
+  background: #1a75f0;
+  border-color: #1a75f0;
+  color: #fff;
+}
+
+.image-position-segment--active:hover {
+  color: #fff;
 }
