@@ -138,7 +138,7 @@ export const THEME1_STYLES = {
     color: "#000000",
     bold: false,
   },
-  bullestList: {
+  bulletList: {
     font: "Arial",
     size: 9,
     color: "#000000",
@@ -263,11 +263,32 @@ export const THEME2_COMPONENTS = [
     placeholder: "1-2a Production Orientation",
   },
   {
+    id: "sub-section-heading",
+    label: "Sub Section Heading",
+    preview: "Customer Value",
+    category: "header",
+    placeholder: "Customer Value",
+  },
+  {
     id: "paragraph-text",
     label: "Paragraph Text",
     preview: "Start typing your text here...",
     category: "text-media",
     placeholder: "",
+  },
+  {
+    id: "bullet-list",
+    label: "Bullet List",
+    preview: "• Type your list item here",
+    category: "text-media",
+    placeholder: "• Type your list item here",
+  },
+  {
+    id: "numbered-list",
+    label: "Numbered List",
+    preview: "1. Type your list item here",
+    category: "text-media",
+    placeholder: "1. Type your list item here",
   },
   {
     id: "image",
@@ -371,6 +392,27 @@ export const THEME2_STYLES = {
     bold: true,
   },
 
+  subSectionHeading: {
+    font: "Neue Kabel Medium, Arial",
+    size: 12,
+    color: "#CA5027",
+    bold: false,
+  },
+
+  numberedList: {
+    font: "A Garamond Pro Regular",
+    size: 11,
+    color: "#000000",
+    bold: false,
+  },
+
+  bulletList: {
+    font: "A Garamond Pro Regular",
+    size: 11,
+    color: "#000000",
+    bold: false,
+  },
+
   // New: Quotation styling for Theme 2 — see THEME1_STYLES.quotationText /
   // quotationAuthor above for the rationale (kept as two separate style
   // objects since the quote and author lines are two separate content
@@ -448,6 +490,10 @@ export const THEME2_COMPONENT_CONFIG = {
 
   "sub-section-title": {
     style: THEME2_STYLES.subSectionTitle,
+  },
+
+  "sub-section-heading": {
+    style: THEME2_STYLES.subSectionHeading,
   },
 
   // New: background/box color + per-line text styles used by

@@ -1838,7 +1838,12 @@ async function reapplyStyleToComponent(context, cc, meta) {
   const range = cc.getRange();
 
   if (meta.type === "bullet-list") {
-    applyStyle(range, themePage?.STYLES?.bullestList || {});
+    applyStyle(range, themePage?.STYLES?.bulletList || {});
+    return;
+  }
+
+  if (meta.type === "numbered-list") {
+    applyStyle(range, themePage?.STYLES?.numberedList || {});
     return;
   }
 
@@ -2047,6 +2052,10 @@ async function insertComponentInsideNewContainer(
 async function insertComponentAtTarget(target, context, id, meta, config, STYLES) {
   if (id === "bullet-list") {
     return insertBulletItem(target, context, meta, STYLES);
+  }
+
+  if (id === "numbered-list") {
+    return insertNumberedListItem(target, context, meta, STYLES);
   }
 
   if (config.dual) {
@@ -2304,12 +2313,36 @@ async function insertContainerThenImage(
 }
 
 async function insertBulletItem(target, context, meta, STYLES) {
-  const p = createAnchorParagraph(target, "");
+  const p = await createAnchorParagraph(target, "");
   const r = p.getRange();
-  applyStyle(r, STYLES.bullestList);
+  applyStyle(r, STYLES.bulletList);
   p.startNewList();
   p.listItem.level = 0;
   await context.sync();
+  const cc = wrapInContentControl(p, meta);
+  await context.sync();
+  return cc;
+}
+
+// New: same shape as insertBulletItem, but overrides the list level to
+// render Arabic numerals (1, 2, 3…) instead of the bulleted default
+// startNewList() gives you.
+async function insertNumberedListItem(target, context, meta, STYLES) {
+  const p = createAnchorParagraph(target, "");
+  const r = p.getRange();
+  applyStyle(r, STYLES.numberedList);
+  p.startNewList();
+  p.listItem.level = 0;
+  await context.sync();
+
+  const list = p.listOrNullObject;
+  list.load("isNullObject");
+  await context.sync();
+  if (!list.isNullObject) {
+    list.setLevelNumbering(0, Word.ListNumbering.arabic);
+    await context.sync();
+  }
+
   const cc = wrapInContentControl(p, meta);
   await context.sync();
   return cc;

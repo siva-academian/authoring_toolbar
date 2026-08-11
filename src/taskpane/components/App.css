@@ -1054,6 +1054,12 @@ layoutctl-panel {
   font-size: 12px;
 }
 
+.component-card-preview[data-theme="theme2"][data-comp-id="sub-section-heading"] {
+  color: #CA5027;
+  font-weight: 600;
+  font-size: 10px;
+}
+
 /* ===========================================================
    Image adjustment panel (width slider / alt text / position)
    -----------------------------------------------------------
