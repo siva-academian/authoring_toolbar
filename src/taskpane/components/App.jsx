@@ -1490,7 +1490,16 @@ async function getContentControlContext(context, selection) {
       return { container: current, selectedComponent };
     }
 
-    selectedComponent = selectedComponent || current;
+    // Sub-parts like quote-text/quote-author live nested inside their own
+    // composite wrapper (e.g. "quotation") and carry meta.parent pointing
+    // to that wrapper's type. Skip setting selectedComponent for those and
+    // keep climbing — this way selectedComponent always ends up being the
+    // outer wrapping CC (the one with no .parent), so a new insert anchors
+    // next to the WHOLE composite component instead of landing squeezed
+    // between its internal parts.
+    if (!meta?.parent) {
+      selectedComponent = selectedComponent || current;
+    }
     current = current.parentContentControlOrNullObject;
   }
 
@@ -1733,17 +1742,32 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
  *    of whether it already has content, without touching a derived Range
  *    at the control's boundary.
  */
-function createAnchorParagraph(target, initialText) {
+async function createAnchorParagraph(target, initialText) {
+  let paragraph;
   if (target.mode === "after-component") {
-    return target.component.insertParagraph(initialText ?? "", Word.InsertLocation.after);
+    paragraph = target.component.insertParagraph(initialText ?? "", Word.InsertLocation.after);
+  } else if (target.mode === "before-component") {
+    paragraph = target.component.insertParagraph(initialText ?? "", Word.InsertLocation.before);
+  } else if (target.mode === "container") {
+    paragraph = target.container.insertParagraph(initialText ?? "", Word.InsertLocation.end);
+  } else {
+    paragraph = target.range.insertParagraph(initialText ?? "", target.location);
   }
-  if (target.mode === "before-component") {
-    return target.component.insertParagraph(initialText ?? "", Word.InsertLocation.before);
+
+  // Force this paragraph to actually exist in Word's document model before
+  // asking about (or trying to change) its list membership — detachFromList
+  // queued in the same batch as insertParagraph can silently no-op because
+  // Word hasn't finalized the paragraph's inherited list state yet.
+  const context = target.context || paragraph.context;
+  paragraph.load("isListItem");
+  await context.sync();
+
+  if (paragraph.isListItem) {
+    paragraph.detachFromList();
+    await context.sync();
   }
-  if (target.mode === "container") {
-    return target.container.insertParagraph(initialText ?? "", Word.InsertLocation.end);
-  }
-  return target.range.insertParagraph(initialText ?? "", target.location);
+
+  return paragraph;
 }
 
 function wrapInContentControl(paragraph, meta) {
@@ -1754,6 +1778,58 @@ function wrapInContentControl(paragraph, meta) {
   cc.cannotDelete = false;
   cc.cannotEdit = false;
   return cc;
+}
+
+/**
+ * Moves the Word cursor/selection into the given content control immediately
+ * after it's inserted, so the user can start typing right away instead of
+ * having to click into the new component manually. Best-effort: if select()
+ * fails for any reason (e.g. a composite CC without a plain text range), it
+ * silently no-ops rather than breaking the insertion flow that already
+ * succeeded.
+ */
+async function focusContentControl(context, cc, location = Word.RangeLocation.end) {
+  try {
+    const range = cc.getRange(location);
+    range.select();
+    await context.sync();
+  } catch (err) {
+    // Non-fatal — cursor placement is a UX nicety, not core functionality.
+  }
+}
+
+/**
+ * FIX (bug #1 — quotation not focusing on insert):
+ *
+ * The previous implementation derived a plain Range from `quotePara`
+ * (`quotePara.getRange(Word.RangeLocation.whole)`) and selected that. That
+ * worked fine right after `quotePara` was first wrapped as the OUTER
+ * "quotation" bounding content control — but by the time focus actually
+ * happens, the SAME paragraph has since been wrapped a SECOND time as the
+ * inner "quote-text" content control (quoteCc sits nested inside outerCc,
+ * both anchored to `quotePara`). Deriving a Range from a paragraph that is
+ * now nested inside two content controls hits exactly the boundary
+ * ambiguity called out in the old comment above (and in
+ * findAdjacentComponents) — and because the whole thing was wrapped in a
+ * silent try/catch, the resulting failure never surfaced, it just quietly
+ * never focused anything.
+ *
+ * The fix: select the CONTENT CONTROL itself (quoteCc) via its own native
+ * `.select()` method instead of deriving a Range from the underlying
+ * paragraph. `ContentControl.select()` is unambiguous regardless of how
+ * many controls are nested around the same paragraph, so this reliably
+ * places the selection inside the quote text and focuses it the same way
+ * every other component already does.
+ */
+async function focusRange(context, contentControl) {
+  try {
+    if (contentControl && typeof contentControl.select === "function") {
+      contentControl.select(Word.SelectionMode.Selected);
+      await context.sync();
+    }
+  } catch (err) {
+    // Non-fatal — cursor placement is a UX nicety, not core functionality.
+  }
 }
 
 /**
@@ -1815,7 +1891,7 @@ function resolveThemePage(themeId) {
  */
 async function reapplyStyleToComponent(context, cc, meta) {
   if (!meta || meta.container) return;
-  if (meta.type === "image" || meta.type === "logo-with-text" || meta.type === "table") {
+  if (meta.type === "image" || meta.type === "logo-with-text" || meta.type === "table" || meta.type === "quotation") {
     return;
   }
 
@@ -1907,6 +1983,7 @@ async function reclaimEscapedContent(context, container, meta, componentMetaCach
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+      await focusContentControl(context, cc);
       return cc;
     }
   }
@@ -1957,6 +2034,8 @@ async function insertComponent(
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+
+      await focusContentControl(context, cc);
     }
   });
 }
@@ -2044,6 +2123,7 @@ async function insertComponentInsideNewContainer(
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[childCc.id] = childMeta;
       }
+      await focusContentControl(context, childCc);
     }
     log(`[nested-insert] child inserted successfully`);
   });
@@ -2082,7 +2162,7 @@ async function insertStyledComponent(target, context, meta, config) {
   // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
-  const paragraph = createAnchorParagraph(target, "");
+  const paragraph = await createAnchorParagraph(target, "");
   const cc = paragraph.insertContentControl();
   cc.title = meta.label;
   cc.tag = JSON.stringify(meta);
@@ -2124,16 +2204,37 @@ function applyStyle(range, style) {
  * paragraph-level fill), and applyStyle's habit of forcing highlightColor
  * to white when a style has no backgroundColor would paint a white
  * highlight behind every character and wash out that shading.
+ *
+ * FIX (bug #2 — quotation inheriting a neighbouring component's style,
+ * e.g. a Header's bold/size/color):
+ *
+ * Previously every property here was assigned directly from `style`
+ * (`style.font`, `style.size`, `style.color`, ...) with NO fallback.
+ * Assigning `undefined` to a Word JS API font property is effectively a
+ * no-op — Word just leaves whatever formatting was already on the run,
+ * which for a brand-new paragraph anchored right after a Header is that
+ * Header's own bold/large/colored font. So whenever a theme's
+ * `quoteStyle`/`authorStyle` config was missing one of these fields, the
+ * neighbouring component's look silently showed through instead.
+ *
+ * The fix is to always fully resolve every property to a concrete value
+ * (falling back to sane defaults when the config doesn't specify one), so
+ * this function ALWAYS fully overrides the run's formatting instead of
+ * leaving gaps for inherited formatting to leak through. Also explicitly
+ * resets italic/underline, which the old version didn't touch at all.
  */
 function applyQuoteFont(range, style = {}) {
-  range.font.name = style.font;
-  range.font.size = style.size;
-  range.font.color = style.color;
+  range.font.name = style.font || "Calibri";
+  range.font.size = style.size || 11;
+  range.font.color = style.color || "#000000";
   range.font.bold = style.bold || false;
+  range.font.italic = style.italic || false;
+  range.font.underline = Word.UnderlineType.none;
+  range.font.highlightColor = null;
 }
 
 async function insertDualTextComponent(target, context, meta, config) {
-  const paragraph = createAnchorParagraph(target, config.text);
+  const paragraph = await createAnchorParagraph(target, config.text);
   const prefixRange = paragraph.insertText(config.prefix, Word.InsertLocation.start);
   const fullRange = paragraph.getRange();
   applyStyle(fullRange, config.textStyle);
@@ -2165,7 +2266,7 @@ async function insertImageAtTarget(target, context, base64, meta, imageSettings 
   const widthPct = clampImageWidthPct(settings.widthPct);
 
   // 1. Create the anchor paragraph and insert the image into it.
-  const imagePara = createAnchorParagraph(target, "");
+  const imagePara = await createAnchorParagraph(target, "");
   const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
   // Word's inline picture width is in points, not a percentage — 414pt was
   // the previous fixed width and stands in for "100% of the figure's usual
@@ -2247,6 +2348,8 @@ async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeC
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = { ...meta, image: imageSettings };
       }
+
+      await focusContentControl(context, cc);
     }
   });
 }
@@ -2307,6 +2410,7 @@ async function insertContainerThenImage(
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = { ...meta, image: imageSettings };
       }
+      await focusContentControl(context, cc);
     }
     log(`[nested-insert] image inserted successfully`);
   });
@@ -2328,11 +2432,18 @@ async function insertBulletItem(target, context, meta, STYLES) {
 // render Arabic numerals (1, 2, 3…) instead of the bulleted default
 // startNewList() gives you.
 async function insertNumberedListItem(target, context, meta, STYLES) {
-  const p = createAnchorParagraph(target, "");
+  const p = await createAnchorParagraph(target, "");
   const r = p.getRange();
   applyStyle(r, STYLES.numberedList);
   p.startNewList();
   p.listItem.level = 0;
+  await context.sync();
+
+  // Wrap FIRST — same order as insertBulletItem — so the paragraph is a
+  // fully-settled, independent node in the document (and a valid
+  // insertion anchor for whatever gets added next to it) before we touch
+  // the list's numbering definition at all.
+  const cc = wrapInContentControl(p, meta);
   await context.sync();
 
   const list = p.listOrNullObject;
@@ -2343,8 +2454,6 @@ async function insertNumberedListItem(target, context, meta, STYLES) {
     await context.sync();
   }
 
-  const cc = wrapInContentControl(p, meta);
-  await context.sync();
   return cc;
 }
 
@@ -2367,7 +2476,7 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
   // paragraph is now a normal node in the document, not a boundary-derived
   // Range, so replacing ITS range with html/a table is safe wherever it
   // landed.
-  const anchorParagraph = createAnchorParagraph(target, "");
+  const anchorParagraph = await createAnchorParagraph(target, "");
   await context.sync();
   const anchorRange = anchorParagraph.getRange();
 
@@ -2467,6 +2576,7 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+      await focusContentControl(context, cc);
     }
   });
 }
@@ -2528,6 +2638,7 @@ async function insertContainerThenLinkToLearning(
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+      await focusContentControl(context, cc);
     }
     log(`[nested-insert] logo-with-text inserted successfully`);
   });
@@ -2552,7 +2663,7 @@ async function insertTableAtTarget(target, context, rows, cols, meta) {
   // content control FIRST, then use ContentControl.insertTable(...) — the
   // API Word provides specifically for placing a table inside/next to an
   // existing content control — so the table ends up properly bounded.
-  const anchorParagraph = createAnchorParagraph(target, "");
+  const anchorParagraph = await createAnchorParagraph(target, "");
   const cc = wrapInContentControl(anchorParagraph, meta);
   await context.sync();
 
@@ -2605,6 +2716,7 @@ async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, 
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+      await focusContentControl(context, cc);
     }
   });
 }
@@ -2665,6 +2777,7 @@ async function insertContainerThenTable(
       if (componentMetaCacheRef) {
         componentMetaCacheRef.current[cc.id] = meta;
       }
+      await focusContentControl(context, cc);
     }
     log(`[nested-insert] table inserted successfully`);
   });
@@ -2682,6 +2795,30 @@ async function insertContainerThenTable(
  * paragraph like the figure-caption/lesson-overview "dual" pattern — is
  * what lets the Python extraction pipeline pull the quote text and the
  * author line out separately and hand back clean JSON.
+ *
+ * FIX (bug #2 — style bleed from a neighbouring component, e.g. a Header):
+ * `createAnchorParagraph` inserts the quote paragraph as a sibling of
+ * whatever paragraph it's anchored next to (via `insertParagraph`), and
+ * Word's `insertParagraph` copies the PARAGRAPH STYLE (not just character
+ * formatting) of that reference paragraph — e.g. a Header component's
+ * "Heading"-type paragraph style, complete with its own bold/size/color.
+ * `applyQuoteFont` only overrides character-level run formatting, so a
+ * paragraph that inherited a Heading style could still visually look like
+ * the header for anything applyQuoteFont didn't explicitly set. Both
+ * `quotePara` and `authorPara` are now reset to the built-in "Normal"
+ * paragraph style immediately after creation, before any other formatting
+ * is applied — so the quote box's look comes ENTIRELY from the explicit
+ * indent/spacing/shading/font calls below, never from whatever paragraph
+ * happened to sit next to it.
+ *
+ * FIX (bug #3 — background shading not showing in Word):
+ * The shading assignment is now applied twice: once right after the two
+ * paragraphs exist (so it's visible immediately), and again at the very
+ * end after both inner content controls (quoteCc/authorCc) have been
+ * wrapped — re-asserting it last guarantees nothing later in this
+ * function (the two additional `insertContentControl` wraps) can leave
+ * the paragraph in a state where the shading never actually got
+ * committed/synced.
  */
 async function insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme) {
   const backgroundColor = config.backgroundColor || "#C9D9C5";
@@ -2692,7 +2829,13 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   //    wrapped as the outer "quotation" box FIRST — this is the same
   //    boundary-safe, no-leftover-blank-line pattern used for tables:
   //    wrap real content, don't wrap-then-fill an empty placeholder.
-  const quotePara = createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
+  const quotePara = await createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
+
+  // Strip any inherited paragraph STYLE (e.g. a neighbouring Header's
+  // Heading-type style) before anything else touches this paragraph — see
+  // the fix note above the function.
+  quotePara.style = "Normal";
+
   const outerMeta = buildMeta("quotation", COMPONENTS, currentFilterTheme);
   const outerCc = wrapInContentControl(quotePara, outerMeta);
   await context.sync();
@@ -2700,16 +2843,25 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   // 2. Add the author line as a genuine second child of the outer CC via
   //    ContentControl.insertParagraph — the same "sanctioned add-a-child"
   //    method used for containers/tables elsewhere in this file.
-  const authorPara = outerCc.insertParagraph("\u2014Author Name, Source", Word.InsertLocation.end);
+  const authorPara = outerCc.insertParagraph("  \u2014Author Name, Source", Word.InsertLocation.end);
+  // authorPara is inserted as a sibling of quotePara, which by this point
+  // is already "Normal" — but reset it explicitly too, defensively, so it
+  // never depends on quotePara's style having been committed first.
+  authorPara.style = "Normal";
   await context.sync();
 
   // 3. Style both lines as one shared "box": same background shading and
-  //    side padding, with the quote/author fonts kept distinct.
-  [quotePara, authorPara].forEach((para) => {
-    para.leftIndent = 14;
-    para.rightIndent = 14;
-    para.shading.backgroundColor = backgroundColor;
-  });
+  //    side padding, with the quote/author fonts kept distinct. Wrapped in
+  //    a small helper so it can be re-applied a second time at the end
+  //    (see fix note above) without duplicating the loop.
+  const applyBoxShading = () => {
+    [quotePara, authorPara].forEach((para) => {
+      para.leftIndent = 8;
+      para.rightIndent = 8;
+      para.shading.backgroundColor = backgroundColor;
+    });
+  };
+  applyBoxShading();
   quotePara.spaceBefore = 12;
   quotePara.spaceAfter = 6;
   authorPara.spaceBefore = 0;
@@ -2727,7 +2879,13 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   const authorCc = wrapInContentControl(authorPara, authorMeta);
 
   await context.sync();
-  return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta };
+
+  // Re-assert the shading once more now that both inner content controls
+  // exist, as a final guarantee it actually sticks (see fix note above).
+  applyBoxShading();
+  await context.sync();
+
+  return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta, quotePara };
 }
 
 async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
@@ -2752,6 +2910,10 @@ async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFil
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
       }
+      // FIX (bug #1): focus the quote's own content control directly
+      // instead of deriving a Range from the (now doubly-wrapped) quote
+      // paragraph — see the fix note above focusRange.
+      await focusRange(context, quoteCc);
     }
   });
 }
@@ -2801,7 +2963,6 @@ async function insertContainerThenQuotation(
     const config = COMPONENT_CONFIG["quotation"] || {};
     const childTarget = { mode: "container", container: containerCc };
     const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(childTarget, context, COMPONENTS, config, currentFilterTheme);
-
     if (activeComponentIdRef) {
       outerCc.load("id");
       quoteCc.load("id");
@@ -2815,6 +2976,9 @@ async function insertContainerThenQuotation(
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
       }
+      // FIX (bug #1): same as insertQuotationComponent above — focus the
+      // quote's own content control directly.
+      await focusRange(context, quoteCc);
     }
     log(`[nested-insert] quotation inserted successfully`);
   });

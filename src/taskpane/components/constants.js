@@ -315,7 +315,7 @@ export const THEME2_COMPONENTS = [
 
 export const THEME2_STYLES = {
   partNumber: {
-    font: "Arial",
+    font: "Neue kabel Book, Arial",
     size: 24,
     color: "#FFFFFF",
     bold: false,
@@ -323,7 +323,7 @@ export const THEME2_STYLES = {
   },
 
   chapterHeading: {
-    font: "Arial",
+    font: "Neue Kabel Medium, Arial",
     size: 36,
     color: "#FFFFFF",
     bold: false,
@@ -331,7 +331,7 @@ export const THEME2_STYLES = {
   },
 
   chapterTitle: {
-    font: "Arial",
+    font: "Neue Kabel Medium, Arial",
     size: 44,
     color: "#214880",
     bold: false,
@@ -339,7 +339,7 @@ export const THEME2_STYLES = {
 
   // New per style table: style for the new "chapter-overview" component.
   chapterOverview: {
-    font: "Arial",
+    font: "Neue Kabel Medium, Arial",
     size: 15,
     color: "#CA5027",
     bold: true,
@@ -355,7 +355,7 @@ export const THEME2_STYLES = {
   },
 
   lessonTitle: {
-    font: "Arial",
+    font: "Futura Std, Arial",
     size: 18,
     color: "#214880",
     bold: true,
@@ -365,13 +365,13 @@ export const THEME2_STYLES = {
   // `caption` above, instead of a single flat style.
   lessonOverview: {
     text: {
-      font: "Arial",
+      font: "Neue Kabel, Arial",
       size: 11,
       color: "#000000",
       bold: false,
     },
     number: {
-      font: "Arial",
+      font: "Neue Kabel, Arial",
       size: 11,
       color: "#CA5027",
       bold: true,
@@ -379,14 +379,14 @@ export const THEME2_STYLES = {
   },
 
   sectionTitle: {
-    font: "Arial",
+    font: "Neue Kabel Regular, Arial",
     size: 10,
     color: "#000000",
     bold: false,
   },
 
   subSectionTitle: {
-    font: "Arial",
+    font: "Neue Kabel, Arial",
     size: 15,
     color: "#00854A",
     bold: true,
@@ -400,14 +400,14 @@ export const THEME2_STYLES = {
   },
 
   numberedList: {
-    font: "A Garamond Pro Regular",
+    font: "A Garamond Pro Regular, Arial",
     size: 11,
     color: "#000000",
     bold: false,
   },
 
   bulletList: {
-    font: "A Garamond Pro Regular",
+    font: "A Garamond Pro Regular, Arial",
     size: 11,
     color: "#000000",
     bold: false,
