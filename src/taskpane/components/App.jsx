@@ -15,7 +15,7 @@ const isContainerComponent = (id) => CONTAINER_COMPONENT_IDS.includes(id);
 // actual Word insert so the two always agree. Declared up top (rather than
 // down near insertImageAtTarget, where they used to live) so there's no
 // ambiguity about them being available to the App() component itself.
-const IMAGE_WIDTH_MIN_PCT = 10;
+const IMAGE_WIDTH_MIN_PCT = 30;
 const IMAGE_WIDTH_MAX_PCT = 100;
 const DEFAULT_IMAGE_SETTINGS = {
   widthPct: 100,
