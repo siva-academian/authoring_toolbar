@@ -998,6 +998,7 @@ export default function App() {
           <button
             className={`tab-btn${activeTab === "ai" ? " tab-btn--active" : ""}`}
             onClick={() => setActiveTab("ai")}
+            style={{ display: "none" }}
           >
             AI Assisted
           </button>
@@ -1339,19 +1340,19 @@ export default function App() {
                 onClick={() => uploadDocument("PDF")}
               // disabled={apiType === "WEB" || apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Lesson PDF"}
+                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Chapter PDF"}
               </button>
               <button
                 className={`footer-btn footer-btn--web ${apiLoadingStatus && apiType === "WEB" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("WEB")}
               // disabled={apiLoadingStatus}
               >
-                {apiLoadingStatus && apiType === "WEB" ? "Cancel Lesson Generation.." : "Preview Lesson"}
+                {apiLoadingStatus && apiType === "WEB" ? "Cancel Chapter Generation.." : "Preview Chapter"}
               </button>
-              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }} style={{ display: "none" }}>
                 Export EPUB
               </button>
-              <button className="footer-btn footer-btn--pdf" onClick={() => { }}>
+              <button className="footer-btn footer-btn--pdf" onClick={() => { }} style={{ display: "none" }}>
                 Content Differences
               </button>
             </div>
