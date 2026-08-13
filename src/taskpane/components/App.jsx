@@ -1802,34 +1802,42 @@ async function focusContentControl(context, cc, location = Word.RangeLocation.en
 /**
  * FIX (bug #1 — quotation not focusing on insert):
  *
- * The previous implementation derived a plain Range from `quotePara`
- * (`quotePara.getRange(Word.RangeLocation.whole)`) and selected that. That
- * worked fine right after `quotePara` was first wrapped as the OUTER
- * "quotation" bounding content control — but by the time focus actually
- * happens, the SAME paragraph has since been wrapped a SECOND time as the
- * inner "quote-text" content control (quoteCc sits nested inside outerCc,
- * both anchored to `quotePara`). Deriving a Range from a paragraph that is
- * now nested inside two content controls hits exactly the boundary
- * ambiguity called out in the old comment above (and in
- * findAdjacentComponents) — and because the whole thing was wrapped in a
- * silent try/catch, the resulting failure never surfaced, it just quietly
- * never focused anything.
+ * First attempt derived a plain Range from `quotePara`
+ * (`quotePara.getRange(Word.RangeLocation.whole)`) — broken because by the
+ * time focus runs, that same paragraph is nested inside TWO content
+ * controls (the outer "quotation" box and the inner "quote-text" control),
+ * which hits the same boundary ambiguity described elsewhere in this file.
  *
- * The fix: select the CONTENT CONTROL itself (quoteCc) via its own native
- * `.select()` method instead of deriving a Range from the underlying
- * paragraph. `ContentControl.select()` is unambiguous regardless of how
- * many controls are nested around the same paragraph, so this reliably
- * places the selection inside the quote text and focuses it the same way
- * every other component already does.
+ * Second attempt switched to `contentControl.select(Word.SelectionMode.
+ * Selected)` — still unreliable, because every OTHER component in this
+ * file that focuses correctly does NOT use that selection-mode argument at
+ * all; they all go through `focusContentControl`, which calls
+ * `cc.getRange(location)` then plain `range.select()` with no arguments
+ * (see above). That's the pattern actually proven to move focus in this
+ * add-in, on both Desktop and Web.
+ *
+ * The real fix: reuse that exact proven pattern, but anchor it to the
+ * START of quoteCc specifically, not the end. quoteCc's END is the risky
+ * boundary — it sits directly against authorCc's START (they're adjacent
+ * siblings), which is the ambiguous case `focusContentControl`'s default
+ * `RangeLocation.end` would hit if used here. quoteCc's START has no such
+ * problem: it's the very first thing inside the outer "quotation" box, so
+ * there is no sibling on that side to be ambiguous with.
  */
-async function focusRange(context, contentControl) {
+async function focusRange(context, quoteContentControl) {
   try {
-    if (contentControl && typeof contentControl.select === "function") {
-      contentControl.select(Word.SelectionMode.Selected);
-      await context.sync();
-    }
+    const range = quoteContentControl.getRange(Word.RangeLocation.start);
+    range.select();
+    await context.sync();
   } catch (err) {
-    // Non-fatal — cursor placement is a UX nicety, not core functionality.
+    // Fallback: if deriving the range still fails for some reason, try
+    // selecting the content control directly as a last resort.
+    try {
+      quoteContentControl.select();
+      await context.sync();
+    } catch (err2) {
+      // Non-fatal — cursor placement is a UX nicety, not core functionality.
+    }
   }
 }
 
@@ -2832,10 +2840,31 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   //    wrap real content, don't wrap-then-fill an empty placeholder.
   const quotePara = await createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
 
-  // Strip any inherited paragraph STYLE (e.g. a neighbouring Header's
-  // Heading-type style) before anything else touches this paragraph — see
-  // the fix note above the function.
-  quotePara.style = "Normal";
+  // FIX ("API is not found" error when inserting quotation into a new
+  // container): `paragraph.style = "Normal"` and `paragraph.shading.
+  // backgroundColor` are NOT used anywhere else in this file, and a Word
+  // JS API call that isn't supported by the current Word host only
+  // reports that failure when the batch is actually sent via
+  // `context.sync()` — with error code "ApiNotFound". Previously these
+  // two calls were unguarded, so on any host where either isn't
+  // supported (e.g. an older Word Desktop build, or a style named
+  // something other than "Normal" in a differently-localized template),
+  // the sync() call throws, the whole insertQuotationAtTarget call
+  // rejects, and the container-modal flow surfaces that raw error instead
+  // of completing the insert. Both are now best-effort: wrapped in
+  // try/catch with their own dedicated sync(), exactly the same
+  // "non-fatal, cosmetic-only" pattern already used everywhere else in
+  // this file (see focusContentControl, refreshThemeLockState, etc.) —
+  // so an unsupported host still gets a fully-inserted, correctly-tagged,
+  // correctly-focused quotation; it just silently skips the paragraph
+  // style reset and/or the tinted background on that host instead of
+  // failing the whole insert.
+  try {
+    quotePara.style = "Normal";
+    await context.sync();
+  } catch (err) {
+    // Non-fatal — proceed without the paragraph style reset.
+  }
 
   const outerMeta = buildMeta("quotation", COMPONENTS, currentFilterTheme);
   const outerCc = wrapInContentControl(quotePara, outerMeta);
@@ -2846,23 +2875,28 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   //    method used for containers/tables elsewhere in this file.
   const authorPara = outerCc.insertParagraph("  \u2014Author Name, Source", Word.InsertLocation.end);
   // authorPara is inserted as a sibling of quotePara, which by this point
-  // is already "Normal" — but reset it explicitly too, defensively, so it
-  // never depends on quotePara's style having been committed first.
-  authorPara.style = "Normal";
-  await context.sync();
+  // is already "Normal" (or, on a host that doesn't support the style
+  // reset, whatever it inherited) — reset it too, same best-effort way.
+  try {
+    authorPara.style = "Normal";
+    await context.sync();
+  } catch (err) {
+    // Non-fatal — proceed without the paragraph style reset.
+  }
 
-  // 3. Style both lines as one shared "box": same background shading and
-  //    side padding, with the quote/author fonts kept distinct. Wrapped in
-  //    a small helper so it can be re-applied a second time at the end
-  //    (see fix note above) without duplicating the loop.
-  const applyBoxShading = () => {
-    [quotePara, authorPara].forEach((para) => {
-      para.leftIndent = 8;
-      para.rightIndent = 8;
-      para.shading.backgroundColor = backgroundColor;
-    });
-  };
-  applyBoxShading();
+  // 3. Style both lines as one shared "box": indent + spacing are basic
+  //    WordApi 1.1 paragraph properties, already proven safe throughout
+  //    this file, so they're applied unconditionally. Background shading
+  //    (Paragraph.shading) needs a newer WordApi version that not every
+  //    Word host supports, so it's split into its own best-effort helper
+  //    — applied once here and re-applied once more at the very end (see
+  //    below) — so a host that can't shade paragraphs still gets a
+  //    correctly-indented, correctly-fonted, correctly-focused quotation,
+  //    just without the tinted background.
+  [quotePara, authorPara].forEach((para) => {
+    para.leftIndent = 8;
+    para.rightIndent = 8;
+  });
   quotePara.spaceBefore = 12;
   quotePara.spaceAfter = 6;
   authorPara.spaceBefore = 0;
@@ -2870,6 +2904,19 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   applyQuoteFont(quotePara.getRange(), quoteStyle);
   applyQuoteFont(authorPara.getRange(), authorStyle);
   await context.sync();
+
+  const applyBoxShading = async () => {
+    try {
+      [quotePara, authorPara].forEach((para) => {
+        para.shading.backgroundColor = backgroundColor;
+      });
+      await context.sync();
+    } catch (err) {
+      // Non-fatal — background shading isn't supported on every Word
+      // host; skip it rather than failing the whole insert.
+    }
+  };
+  await applyBoxShading();
 
   // 4. Nest the quote and author lines EACH in their own content control,
   //    tagged distinctly, inside the outer "quotation" content control.
@@ -2882,9 +2929,9 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   await context.sync();
 
   // Re-assert the shading once more now that both inner content controls
-  // exist, as a final guarantee it actually sticks (see fix note above).
-  applyBoxShading();
-  await context.sync();
+  // exist, best-effort, same as above — guarantees it sticks on hosts
+  // that support it, without risk to hosts that don't.
+  await applyBoxShading();
 
   return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta, quotePara };
 }
