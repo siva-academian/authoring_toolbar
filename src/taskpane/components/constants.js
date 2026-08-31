@@ -1,5 +1,12 @@
 export const THEME1_COMPONENTS = [
   {
+    id: "page-header",
+    label: "Page Header",
+    preview: "1.Introduction to Biology",
+    category: "header",
+    placeholder: "1.Introduction to Biology",
+  },
+  {
     id: "chapter-number",
     label: "Chapter Number",
     preview: "Chapter 1",
@@ -85,9 +92,22 @@ export const THEME1_COMPONENTS = [
     category: "header",
     placeholder: "",
   },
+  {
+    id: "footer",
+    label: "Footer",
+    preview: "Access for free at openstax.org",
+    category: "text-media",
+    placeholder: "Access for free at openstax.org",
+  }
 ];
 
 export const THEME1_STYLES = {
+  pageHeader: {
+    font: "Mulish",
+    size: 7.5,
+    color: "#A5A5A5",
+    bold: true,
+  },
   chapterHeading: {
     font: "Arial",
     size: 15,
@@ -156,9 +176,18 @@ export const THEME1_STYLES = {
     color: "#000000",
     bold: false,
   },
+  footer: {
+    font: "Mulish",
+    size: 7.5,
+    color: "#A5A5A5",
+    bold: true,
+  }
 };
 
 export const THEME1_COMPONENT_CONFIG = {
+  "page-header": {
+    style: THEME1_STYLES.pageHeader,
+  },
   "chapter-number": {
     style: THEME1_STYLES.chapterHeading,
     allCaps: true,
@@ -194,6 +223,9 @@ export const THEME1_COMPONENT_CONFIG = {
       textStyle: THEME1_STYLES.imageFigureText,
     }
   },
+  "footer": {
+    style: THEME1_STYLES.footer,
+  }
 };
 
 export const THEME2_COMPONENTS = [
@@ -304,7 +336,8 @@ export const THEME2_COMPONENTS = [
     previewPrefix: null,
     category: "text-media",
     placeholder: "",
-  }, {
+  },
+  {
     id: "footer",
     label: "Footer",
     preview: "Footer text goes here.",

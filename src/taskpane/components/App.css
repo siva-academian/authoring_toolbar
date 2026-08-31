@@ -881,6 +881,12 @@ layoutctl-panel {
    task pane renders.
 =========================================================== */
 /* ─── Theme 1 ("theme1") ───────────────────────────────────────────── */
+.component-card-preview[data-theme="theme1"][data-comp-id="page-header"] {
+  color: #A5A5A5;
+  font-weight: 500;
+  font-size: 10px;
+}
+
 .component-card-preview[data-theme="theme1"][data-comp-id="chapter-number"] {
   color: #0074BC;
   font-weight: 400;
@@ -957,6 +963,12 @@ layoutctl-panel {
   font-weight: 400;
   font-style: normal;
   font-size: 11px;
+}
+
+.component-card-preview[data-theme="theme1"][data-comp-id="footer"] {
+  color: #A5A5A5;
+  font-weight: 500;
+  font-size: 10px;
 }
 
 /* ─── Theme 2 ("theme2") ──────────────────────────────────────────── */
