@@ -9,18 +9,12 @@ const CONTAINER_COMPONENT_IDS = ["opener", "non-opener"];
 
 const isContainerComponent = (id) => CONTAINER_COMPONENT_IDS.includes(id);
 
-/* ─── Image adjustment defaults / constants ──────────────────────────────── */
-// Shared min/max bounds for the width slider (as a percentage of the
-// figure's usual display width), used by both the taskpane UI and the
-// actual Word insert so the two always agree. Declared up top (rather than
-// down near insertImageAtTarget, where they used to live) so there's no
-// ambiguity about them being available to the App() component itself.
 const IMAGE_WIDTH_MIN_PCT = 30;
 const IMAGE_WIDTH_MAX_PCT = 100;
 const DEFAULT_IMAGE_SETTINGS = {
   widthPct: 100,
   altText: "",
-  position: "center", // "left" | "center" | "right"
+  position: "center",
 };
 
 const InstrcutionIcon = () => (
@@ -104,10 +98,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("content");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  // Width (%), alt text, and position (left/center/right) chosen via the
-  // slider/fields under the image preview — read by handleImageInsert and
-  // insertInsideNewContainer so the picture is inserted into Word with
-  // exactly these settings applied.
   const [imageSettings, setImageSettings] = useState(DEFAULT_IMAGE_SETTINGS);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -124,66 +114,12 @@ export default function App() {
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showTableModal, setShowTableModal] = useState(false);
-  const [tableRows, setTableRows] = useState("2");
-  const [tableCols, setTableCols] = useState("2");
   const abortControllerRef = useRef(null);
-  // Whenever at least one of our components exists anywhere in the
-  // document, the Filter dropdown locks to the theme those components
-  // belong to (the other theme's option becomes disabled) so the user
-  // can't mix stylings from both themes in the same file. Once every
-  // inserted component has been removed and the document is empty again,
-  // this flips back to false and both themes become selectable again.
   const [hasAnyComponent, setHasAnyComponent] = useState(false);
 
-  // ── Reliable "which container am I inserting into" tracking ──────────────
-  // Word Online does not reliably preserve/restore the document selection
-  // across a click into the taskpane the way Word Desktop does, so we can't
-  // depend on `context.document.getSelection()` still pointing at the right
-  // place on the *next* insert. Instead we track the active container's
-  // content-control id explicitly in a ref, and update it in two ways:
-  //   1. Programmatically, right after we create/enter a container.
-  //   2. From a DocumentSelectionChanged handler, when the user manually
-  //      clicks somewhere else in the document.
   const activeContainerIdRef = useRef(null);
-
-  // ── Reliable "which component inside the container is the cursor on"
-  // tracking ─────────────────────────────────────────────────────────────
-  // In addition to knowing which container is active, we need to know
-  // *which child component inside that container* the cursor is currently
-  // on, so a new insert lands immediately after that specific component
-  // (as a sibling) rather than always being appended to the end of the
-  // container. This is kept in sync the same two ways as
-  // activeContainerIdRef above: right after we insert a new component, and
-  // from the DocumentSelectionChanged handler when the user clicks
-  // somewhere else by hand.
   const activeComponentIdRef = useRef(null);
-
-  // ── Reliable "insert before or after the anchor component" tracking ──────
-  // activeComponentIdRef alone only tells us WHICH component to anchor the
-  // next insert to — it doesn't say whether the cursor sits before or
-  // after that component. When the cursor is directly inside a component's
-  // own content control, the answer is always "after" (siblings get added
-  // below the component being edited). But when the cursor is on the
-  // container itself — on a blank/raw line that isn't part of any
-  // component — the nearest anchor might be the component immediately
-  // BEFORE the cursor (insert after it) or, if the cursor sits above every
-  // component (e.g. the very first line of the container), the nearest
-  // component might be the one immediately AFTER the cursor (insert before
-  // it). This ref remembers which case we're in so the next insert lands
-  // exactly where the cursor was pointing instead of always being appended
-  // to the end of the container.
   const activeAnchorPositionRef = useRef("after");
-
-  // ── Component metadata cache, keyed by content-control id ────────────────
-  // Whenever we insert (or later re-detect) a component we remember its
-  // parsed tag/meta here. This lets the DocumentSelectionChanged handler:
-  //   1. Re-apply that exact component's font/style to whatever text is now
-  //      inside it (typed or pasted), so pasted content always inherits the
-  //      component's look instead of the clipboard's own formatting.
-  //   2. Re-wrap content that Word "escaped" outside its content control
-  //      (see reclaimEscapedContent) using the SAME tag/meta it had before,
-  //      so the component keeps behaving exactly like it did originally.
   const componentMetaCacheRef = useRef({});
 
   const pageConfig =
@@ -196,7 +132,6 @@ export default function App() {
     COMPONENT_CONFIG,
   } = pageConfig;
 
-  // Runs once: create a stable document id if this doc doesn't have one yet.
   React.useEffect(() => {
     let docId = Office?.context?.document?.settings.get("appDocId");
     if (!docId) {
@@ -206,23 +141,16 @@ export default function App() {
     }
   }, []);
 
-  // Runs every time the selected theme changes: keep it persisted.
   React.useEffect(() => {
     Office?.context?.document?.settings.set("theme", currentFilterTheme);
     Office?.context?.document?.settings.saveAsync();
   }, [currentFilterTheme]);
 
-  // On load, check whether the document already contains any of our
-  // components so the Filter dropdown starts out correctly locked (or
-  // unlocked) instead of always defaulting to "both themes selectable".
   React.useEffect(() => {
     refreshThemeLockState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep activeContainerIdRef / activeComponentIdRef in sync whenever the
-  // user clicks around the document by hand (not just when our own code
-  // inserts something).
   React.useEffect(() => {
     let registered = false;
 
@@ -230,7 +158,6 @@ export default function App() {
       try {
         await Word.run(async (context) => {
           const selection = context.document.getSelection();
-          console.log({ selection })
           const { container, selectedComponent } = await getContentControlContext(context, selection);
           if (container) {
             container.load("id");
@@ -243,14 +170,6 @@ export default function App() {
             let resolvedAnchorPosition = "after";
 
             if (!selectedComponent) {
-              // The cursor is on the container itself, not on any specific
-              // child component. If the component we were last on has
-              // since vanished, check whether Word "escaped" its pasted
-              // replacement text outside the content control (selecting
-              // 100% of a component's text and pasting deletes the
-              // now-empty control before the paste lands) and, if so,
-              // re-wrap that text with the same tag/meta so it keeps
-              // behaving like the original component.
               const lastKnownComponentId = activeComponentIdRef.current;
               const lastKnownMeta = lastKnownComponentId
                 ? componentMetaCacheRef.current[lastKnownComponentId]
@@ -273,20 +192,17 @@ export default function App() {
               }
 
               if (!reclaimedCc) {
-                // No escaped content to reclaim — figure out exactly where
-                // among the container's existing components the cursor is
-                // currently sitting, so the next insert lands right there
-                // instead of jumping to the end of the container. We look
-                // for the nearest component that ends BEFORE the cursor
-                // (insert after it) and, failing that, the nearest one
-                // that starts AFTER the cursor (insert before it, e.g. the
-                // cursor is on a blank line above every component).
-                const { precedingComponent, followingComponent } = await findAdjacentComponents(
+                const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(
                   context,
                   container,
                   selection
                 );
-                if (precedingComponent) {
+                if (containingComponent) {
+                  containingComponent.load("id");
+                  await context.sync();
+                  resolvedComponentId = containingComponent.id;
+                  resolvedAnchorPosition = "after";
+                } else if (precedingComponent) {
                   precedingComponent.load("id");
                   await context.sync();
                   resolvedComponentId = precedingComponent.id;
@@ -302,11 +218,6 @@ export default function App() {
                 }
               }
             } else {
-              // Cursor settled on a real, existing component — re-apply
-              // its defined font/style to its whole text range. This is
-              // what makes newly typed or pasted text auto-format to
-              // match the component instead of keeping whatever
-              // formatting it arrived with (e.g. from the clipboard).
               const meta = parseContentControlTag(selectedComponent.tag);
               if (meta) {
                 componentMetaCacheRef.current[selectedComponent.id] = meta;
@@ -317,28 +228,14 @@ export default function App() {
             }
 
             activeContainerIdRef.current = container.id;
-            // selectedComponent is the specific child component the cursor
-            // is currently inside (or null if the cursor is on the
-            // container itself, not on any particular child) — either way
-            // this reflects the true current state, so we always update it.
             activeComponentIdRef.current = resolvedComponentId;
             activeAnchorPositionRef.current = resolvedAnchorPosition;
           }
-          // If the click landed outside any container, we deliberately do
-          // NOT clear activeContainerIdRef/activeComponentIdRef here — an
-          // accidental click just outside a container (e.g. on whitespace)
-          // shouldn't forget the container/component the user was just
-          // working in. They only change when we can positively resolve a
-          // new container.
         });
       } catch (err) {
         // Non-fatal — selection tracking is best-effort.
       }
 
-      // Best-effort: also refresh the theme-lock state whenever the user
-      // clicks around the document. This is what picks up manual deletions
-      // (which don't go through our insert code) so the Filter dropdown
-      // re-enables once the document is empty of our components again.
       refreshThemeLockState();
     };
 
@@ -360,14 +257,6 @@ export default function App() {
     };
   }, []);
 
-  // Scans the whole document for any of our components (any content
-  // control tagged with our schema) and figures out which theme they
-  // belong to. If we find at least one, we lock the Filter dropdown to
-  // that theme (disabling the other option) and make sure `currentFilterTheme`
-  // matches it — this also covers the case where the document already had
-  // content when the add-in was (re)loaded. If none are found, the
-  // document is effectively empty of our components and both themes
-  // become selectable again.
   const refreshThemeLockState = async () => {
     try {
       await Word.run(async (context) => {
@@ -378,15 +267,6 @@ export default function App() {
         let theme = null;
         for (const cc of contentControls.items) {
           const meta = parseContentControlTag(cc.tag);
-          console.log({ meta })
-          // We only want to lock the Filter once an actual COMPONENT has been
-          // placed inside an Opener/Non-Opener — not merely because an (empty)
-          // Opener/Non-Opener container itself exists. Container content controls
-          // carry meta.container === true; every child component inserted inside
-          // one carries meta.container === false and can only ever have been
-          // created by inserting into an existing container (insertion outside a
-          // container throws OUTSIDE_CONTAINER), so finding one of these is a
-          // reliable signal that a container is no longer empty.
           if (meta && !meta.container) {
             const resolvedPage =
               THEME_TYPE[theme] ||
@@ -395,7 +275,7 @@ export default function App() {
               foundThemeId = resolvedPage.id;
               break;
             }
-          } else if (theme === null && meta.container) {
+          } else if (theme === null && meta?.container) {
             theme = meta.theme
           }
         }
@@ -445,9 +325,6 @@ export default function App() {
     setStatus("");
     try {
       if (id === "quotation") {
-        // Quotation needs its own insertion logic (two separately tagged
-        // content controls inside one bounding box) instead of the
-        // generic single-content-control insertComponent flow.
         await insertQuotationComponent(
           components,
           componentConfig,
@@ -460,7 +337,6 @@ export default function App() {
         setStatus(`✓ "Quotation" inserted.`);
         return;
       }
-      // Pass the current layout context so it gets embedded in the tag
       await insertComponent(
         id,
         components,
@@ -599,39 +475,6 @@ export default function App() {
     }
   };
 
-  const handleTableClick = () => {
-    setShowTableModal(true);
-    setStatus("");
-  };
-
-  const handleTableInsert = async () => {
-    const rows = parseInt(tableRows, 10);
-    const cols = parseInt(tableCols, 10);
-    if (!rows || rows < 1 || !cols || cols < 1) {
-      setStatus("✗ Please enter valid rows and columns.");
-      return;
-    }
-    setLoading("table");
-    setStatus("");
-    try {
-      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef);
-      setStatus("✓ Table inserted.");
-      setShowTableModal(false);
-    } catch (err) {
-      if (err.code === "OUTSIDE_CONTAINER") {
-        setShowTableModal(false);
-        setPendingComponent("table");
-        setShowContainerModal(true);
-        return;
-      }
-      setStatus(`✗ Error: ${err.message || "Table insert failed."}`);
-    } finally {
-      setLoading(null);
-      setTimeout(() => setStatus(""), 2000);
-      refreshThemeLockState();
-    }
-  };
-
   const DOCX_MIME =
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -678,7 +521,7 @@ export default function App() {
       abortControllerRef.current?.abort();
       setApiLoadingStatus(false);
       setApiType(null);
-      return; // Prevent multiple simultaneous uploads
+      return;
     }
 
     const controller = new AbortController();
@@ -697,10 +540,6 @@ export default function App() {
       const file = await getCurrentWordFile();
       const formData = new FormData();
       formData.append("file", file);
-      // Include every tracked image's current width/alt-text/position
-      // metadata alongside the document upload, so the PDF/web generation
-      // pipeline can lay images out exactly as they appear in Word instead
-      // of falling back to whatever default the backend renderer assumes.
       const imageMetadata = await collectImageMetadata();
       formData.append("imageMetadata", JSON.stringify(imageMetadata));
       const transformUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${docId}`;
@@ -737,7 +576,6 @@ export default function App() {
       }
       const documentId = result.document_id || docId;
 
-      /* Status checking */
       const statusUrl = `${REACT_APP_BACKEND_BASE_URL}/extract/${tenantId}/${documentId}/status`;
 
       const pollStatus = async () => {
@@ -771,7 +609,6 @@ export default function App() {
             return false;
           }
 
-          // Still pending/processing — wait 5 seconds before checking again
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       };
@@ -781,7 +618,6 @@ export default function App() {
         log(`Stopping: extraction did not succeed.`);
         return;
       }
-      /* Status checking end */
 
       const webHeaders = new Headers();
       const templateId = currentFilterTheme;
@@ -838,10 +674,6 @@ export default function App() {
       log(`[container-modal] click "${containerType}", pendingComponent="${pendingComponent}"`);
 
       if (pendingComponent === "image") {
-        // Media (figure image) must go through the same "create a
-        // container, then insert the child inside it" flow as every other
-        // component — it just needs the image-specific insertion logic
-        // (inline picture + caption) instead of the generic styled-text one.
         if (!imageFile) {
           setStatus("✗ Please select an image first.");
           setPendingComponent(null);
@@ -865,8 +697,6 @@ export default function App() {
         setShowImageModal(false);
         setStatus("✓ Figure image inserted.");
       } else if (pendingComponent === "logo-with-text") {
-        // Same as above, but for the Icon-with-Text (logo-with-text)
-        // component, which needs its own HTML/table-based insertion logic.
         if (!linkImageFile) {
           setStatus("✗ Please upload a Logo with Text image first.");
           setPendingComponent(null);
@@ -889,29 +719,7 @@ export default function App() {
         setLinkImagePreview(null);
         if (linkFileInputRef.current) linkFileInputRef.current.value = "";
         setStatus("✓ Logo with Text inserted.");
-      } else if (pendingComponent === "table") {
-        // Same pattern: create the container first, then insert the table
-        // (with its merged, centered header row) inside it.
-        const rows = parseInt(tableRows, 10) || 2;
-        const cols = parseInt(tableCols, 10) || 2;
-        await insertContainerThenTable(
-          containerType,
-          rows,
-          cols,
-          COMPONENTS,
-          activeContainerIdRef,
-          activeComponentIdRef,
-          activeAnchorPositionRef,
-          log,
-          currentFilterTheme,
-          componentMetaCacheRef
-        );
-        setShowTableModal(false);
-        setStatus("✓ Table inserted.");
       } else if (pendingComponent === "quotation") {
-        // Same pattern: create the container first, then insert the
-        // quotation (quote line + author line, each separately tagged)
-        // inside it.
         await insertContainerThenQuotation(
           containerType,
           COMPONENTS,
@@ -925,8 +733,6 @@ export default function App() {
         );
         setStatus("✓ Quotation inserted.");
       } else if (pendingComponent) {
-        // pendingComponent was chosen from the currently active page's
-        // component set, so reuse that exact set for the nested insert.
         await insertComponentInsideNewContainer(
           containerType,
           pendingComponent,
@@ -983,7 +789,6 @@ export default function App() {
 
   return (
     <div className="addin-root">
-      {/* ── Header ── */}
       <header className="addin-header">
         <div className="brand-logo">
           <img src="../assets/Author_Logo.png" alt="Brand Logo" className="brand-logo-img" />
@@ -1012,7 +817,6 @@ export default function App() {
       </header>
 
       {activeTab === "content" && (<>
-        {/* Book selector — now lives inside the layout context panel */}
         <div className="layoutctl-panel">
           <div className="layoutctl-row">
             <span className="layoutctl-label">Layout</span>
@@ -1082,9 +886,7 @@ export default function App() {
         </div>
       </>
       )}
-      {/* ─────────────────────────────────────────────────────────────────────── */}
 
-      {/* ── Main ── */}
       <main className="addin-main">
         {status && (
           <p className={`intruction-text${status.startsWith("✓") ? " instruction-text--success" : " instruction-text--error"}`}>
@@ -1109,20 +911,6 @@ export default function App() {
               <div className="card-grid">
                 {textMediaComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
-                )}
-                {currentFilterTheme === "theme2" || currentFilterTheme === "theme1" && (
-                  <button
-                    className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
-                    onClick={handleTableClick}
-                    disabled={!!loading}
-                    aria-label="Insert Table"
-                  >
-                    <div className="component-card-top">
-                      <span className="component-card-label">
-                        {loading === "table" ? "Inserting…" : "Table"}
-                      </span>
-                    </div>
-                  </button>
                 )}
               </div>
             </section>
@@ -1151,7 +939,6 @@ export default function App() {
                     />
                   ) : (
                     <>
-                      {/* Image icon */}
                       <div className="drop-zone-icon">
                         {ImageIcon()}
                       </div>
@@ -1338,14 +1125,12 @@ export default function App() {
               <button
                 className={`footer-btn footer-btn--pdf ${apiLoadingStatus && apiType === "PDF" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("PDF")}
-              // disabled={apiType === "WEB" || apiLoadingStatus}
               >
                 {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Chapter PDF"}
               </button>
               <button
                 className={`footer-btn footer-btn--web ${apiLoadingStatus && apiType === "WEB" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("WEB")}
-              // disabled={apiLoadingStatus}
               >
                 {apiLoadingStatus && apiType === "WEB" ? "Cancel Chapter Generation.." : "Preview Chapter"}
               </button>
@@ -1369,60 +1154,6 @@ export default function App() {
           </details>
         )}
       </main>
-      {
-        showTableModal && (
-          <div className="container-modal-overlay" onClick={() => setShowTableModal(false)}>
-            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="image-modal-header">
-                <h3>Insert Table</h3>
-              </div>
-              <section className="image-section">
-                <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
-                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
-                    Rows
-                    <input
-                      type="number"
-                      className="rows-input"
-                      min="1"
-                      max="20"
-                      value={tableRows}
-                      onChange={(e) => setTableRows(e.target.value)}
-                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
-                    />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
-                    Columns
-                    <input
-                      type="number"
-                      className="cols-input"
-                      min="1"
-                      max="10"
-                      value={tableCols}
-                      onChange={(e) => setTableCols(e.target.value)}
-                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
-                    />
-                  </label>
-                </div>
-                <div className="image-actions">
-                  <button
-                    className="insert-btn"
-                    onClick={handleTableInsert}
-                    disabled={loading === "table"}
-                  >
-                    {loading === "table" ? "Inserting…" : "Insert into Word"}
-                  </button>
-                  <button
-                    className="cancel-btn"
-                    onClick={() => setShowTableModal(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </section>
-            </div>
-          </div>
-        )
-      }
       {
         showContainerModal && (
           <div className="container-modal-overlay">
@@ -1473,8 +1204,36 @@ function parseContentControlTag(tag) {
   }
 }
 
+async function resolveParentContentControlOrNull(context, range) {
+  const cc = range.parentContentControlOrNullObject;
+  cc.load("isNullObject");
+  await context.sync();
+  return cc.isNullObject ? null : cc;
+}
+
 async function getContentControlContext(context, selection) {
-  let current = selection.parentContentControlOrNullObject;
+  let current = await resolveParentContentControlOrNull(context, selection);
+
+  if (!current) {
+    // A selection that exactly matches a content control's boundaries
+    // (e.g. the whole component is highlighted) can make Word return a
+    // null parent for the selection itself — a known boundary quirk.
+    // Ask Word directly which content control(s) are fully contained
+    // within the selection instead of probing the selection's edges
+    // (probing an edge is ambiguous: it sits exactly on the boundary
+    // with a sibling component and can resolve to the wrong one).
+    const contained = selection.contentControls;
+    contained.load("items");
+    await context.sync();
+    if (contained.items.length > 0) {
+      current = contained.items[0];
+    }
+  }
+
+  if (!current) {
+    return { container: null, selectedComponent: null };
+  }
+
   let selectedComponent = null;
 
   for (let depth = 0; depth < 20; depth += 1) {
@@ -1491,13 +1250,6 @@ async function getContentControlContext(context, selection) {
       return { container: current, selectedComponent };
     }
 
-    // Sub-parts like quote-text/quote-author live nested inside their own
-    // composite wrapper (e.g. "quotation") and carry meta.parent pointing
-    // to that wrapper's type. Skip setting selectedComponent for those and
-    // keep climbing — this way selectedComponent always ends up being the
-    // outer wrapping CC (the one with no .parent), so a new insert anchors
-    // next to the WHOLE composite component instead of landing squeezed
-    // between its internal parts.
     if (!meta?.parent) {
       selectedComponent = selectedComponent || current;
     }
@@ -1507,28 +1259,6 @@ async function getContentControlContext(context, selection) {
   return { container: null, selectedComponent: null };
 }
 
-/**
- * Scans every top-level component (a direct-child content control of
- * `container` whose meta identifies it as a real, non-container,
- * non-nested-sub-part component) and, using Word's own
- * `Range.compareLocationWith` comparison against the given cursor/selection
- * range, finds:
- *   - `precedingComponent`: the nearest component that ends BEFORE the
- *     cursor (the last "Before" match in document order) — the anchor to
- *     insert AFTER.
- *   - `followingComponent`: the nearest component that starts AFTER the
- *     cursor (the first "After" match in document order) — used as a
- *     fallback anchor to insert BEFORE, for the case where the cursor is
- *     above every existing component (e.g. a blank line at the very top of
- *     the container).
- *
- * This is what lets a new component land exactly where the cursor is
- * pointing within the container — instead of always being appended to the
- * end — whenever the cursor itself isn't inside any specific component's
- * own content control (see the "cursor is on the container itself" branch
- * in the DocumentSelectionChanged handler, and the equivalent live-selection
- * fallback in getInsertionTarget).
- */
 async function findAdjacentComponents(context, container, selectionRange) {
   const contentControls = container.contentControls;
   contentControls.load("items");
@@ -1536,17 +1266,13 @@ async function findAdjacentComponents(context, container, selectionRange) {
 
   let precedingComponent = null;
   let followingComponent = null;
+  let containingComponent = null;
 
   for (const cc of contentControls.items) {
     cc.load("tag,id");
     // eslint-disable-next-line no-await-in-loop
     await context.sync();
     const meta = parseContentControlTag(cc.tag);
-    // Only consider genuine top-level components directly inside this
-    // container — skip nested containers (shouldn't occur here) and skip
-    // sub-parts like quote-text/quote-author that live nested inside their
-    // own "quotation" wrapper (meta.parent is set for those); the outer
-    // "quotation" control itself (no meta.parent) is what we want to match.
     if (!meta || meta.container || meta.parent) continue;
 
     const ccRange = cc.getRange();
@@ -1556,25 +1282,22 @@ async function findAdjacentComponents(context, container, selectionRange) {
 
     const relation = comparison.value;
     if (relation === "Before") {
-      // Items come back in document order, so the LAST "Before" match as we
-      // iterate forward is the nearest preceding component.
       precedingComponent = cc;
     } else if (relation === "After" && !followingComponent) {
-      // First "After" match in document order is the nearest following one.
       followingComponent = cc;
+    } else if (relation !== "Before" && relation !== "After") {
+      // The selection sits at least partly inside this component's own
+      // range (e.g. "Equal", "Inside", "Contains", "Overlaps" — the exact
+      // value depends on how much of the component's text is selected).
+      // This IS the component the user has selected/highlighted, so it
+      // takes priority over any Before/After neighbor.
+      containingComponent = cc;
     }
   }
 
-  return { precedingComponent, followingComponent };
+  return { precedingComponent, followingComponent, containingComponent };
 }
 
-/**
- * Always resolves to the LAST opener/non-opener content control in
- * document order — regardless of where the cursor/selection currently is.
- * This is what makes clicking "Opener"/"Non Opener" deterministic: it
- * always appends after the most recently inserted container, never nests,
- * and never depends on the (sometimes unreliable) ambient selection.
- */
 async function getLastContainerControl(context) {
   const contentControls = context.document.body.contentControls;
   contentControls.load("items/tag");
@@ -1584,21 +1307,12 @@ async function getLastContainerControl(context) {
   for (const cc of contentControls.items) {
     const meta = parseContentControlTag(cc.tag);
     if (meta?.container) {
-      lastContainer = cc; // items are in document order, so the last match wins
+      lastContainer = cc;
     }
   }
   return lastContainer;
 }
 
-/**
- * Resolves the currently-active container by id (loaded from
- * activeContainerIdRef.current) rather than the live document selection.
- * This is the key fix for Word Online: taskpane clicks don't reliably
- * preserve/restore the document selection the way Word Desktop does, so
- * chaining inserts off `context.document.getSelection()` across separate
- * `Word.run()` calls is flaky there. Resolving by a stored content-control
- * id is reliable on both platforms.
- */
 async function getContainerById(context, containerId) {
   if (!containerId) return null;
   const cc = context.document.contentControls.getByIdOrNullObject(containerId);
@@ -1607,11 +1321,6 @@ async function getContainerById(context, containerId) {
   return cc.isNullObject ? null : cc;
 }
 
-/**
- * Same idea as getContainerById, but for the specific child component
- * (content control) inside the active container that the cursor was last
- * known to be on — loaded from activeComponentIdRef.current.
- */
 async function getComponentById(context, componentId) {
   if (!componentId) return null;
   const cc = context.document.contentControls.getByIdOrNullObject(componentId);
@@ -1620,43 +1329,11 @@ async function getComponentById(context, componentId) {
   return cc.isNullObject ? null : cc;
 }
 
-/**
- * Resolves *where* the next insert should go, but deliberately stops short
- * of computing an actual Range for the container/component cases. Deriving
- * a Range from a content control's boundary (via getRange(content)/select/
- * etc.) is what kept breaking on Word Web — collapsed selections and
- * content-range endpoints at a CC edge get interpreted inconsistently by
- * insertParagraph.
- *
- * Instead, for anything going inside a container we hand back one of:
- *   - the specific child ContentControl the cursor was last on
- *     (mode: "after-component") — the caller inserts the new paragraph as
- *     a SIBLING immediately after that component via
- *     `component.insertParagraph(text, InsertLocation.after)`, so it lands
- *     in the middle of the existing components (right next to the one the
- *     cursor is on) instead of always being appended at the end, and
- *     without nesting inside that component.
- *   - the nearest FOLLOWING component (mode: "before-component") — used
- *     when the cursor sits above every existing component in the
- *     container (e.g. a blank line at the very top) — inserts as a
- *     SIBLING immediately before that component via
- *     `component.insertParagraph(text, InsertLocation.before)`.
- *   - or the container itself (mode: "container") when there's no more
- *     specific active component to anchor to (e.g. the container is still
- *     completely empty) — the caller appends with
- *     `container.insertParagraph(text, InsertLocation.end)`, Word's own
- *     sanctioned "add a child to this content control" method, which isn't
- *     subject to the boundary ambiguity a derived Range has.
- */
 async function getInsertionTarget(context, componentId, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef) {
   if (isContainerComponent(componentId)) {
     const lastContainer = await getLastContainerControl(context);
 
     if (lastContainer) {
-      // Every opener/non-opener must start on its own page. Insert a page
-      // break right after the previous container first, then always
-      // append the new container at the very end of the document body —
-      // which, once the break above has been committed, is a fresh page.
       lastContainer.getRange().insertBreak(Word.BreakType.page, Word.InsertLocation.after);
       await context.sync();
     }
@@ -1668,19 +1345,55 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
     };
   }
 
-  // 1. Prefer the explicitly-tracked active container (reliable cross-batch,
-  //    works the same on Desktop and Web).
   const activeContainerId = activeContainerIdRef?.current;
   const trackedContainer = await getContainerById(context, activeContainerId);
 
+  // Resolve from the LIVE selection first, every time. The tracked refs
+  // are updated asynchronously by the DocumentSelectionChanged handler
+  // (several Word.run/context.sync round-trips), so there is a window
+  // right after the user selects a component — and before that handler has
+  // finished running — where the refs still hold whatever was active
+  // before that selection. Trusting them in that window anchors the insert
+  // to the previously-active component instead of the one the user just
+  // selected. The live selection reflects the true, current cursor
+  // position and is checked first; the tracked refs remain as a fallback
+  // for Word Online, where focus moving into the taskpane can reset the
+  // document's ambient selection.
+  const liveSelection = context.document.getSelection();
+  const { container: liveContainer, selectedComponent: liveSelectedComponent } =
+    await getContentControlContext(context, liveSelection);
+
   if (trackedContainer) {
-    // 1a. Within that container, prefer inserting right next to the
-    //     specific child component the cursor was last known to be on (or
-    //     the nearest component adjacent to a blank line the cursor was
-    //     on), using the position ("after"/"before") that was resolved by
-    //     the DocumentSelectionChanged handler at the time — so the new
-    //     component lands exactly where the cursor is pointing within the
-    //     container, instead of always jumping to the end.
+    trackedContainer.load("id");
+    if (liveContainer) {
+      liveContainer.load("id");
+    }
+    await context.sync();
+
+    if (liveContainer && liveContainer.id === trackedContainer.id) {
+      if (liveSelectedComponent) {
+        return { mode: "after-component", component: liveSelectedComponent, container: trackedContainer };
+      }
+
+      const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(
+        context,
+        trackedContainer,
+        liveSelection
+      );
+      if (containingComponent) {
+        return { mode: "after-component", component: containingComponent, container: trackedContainer };
+      }
+      if (precedingComponent) {
+        return { mode: "after-component", component: precedingComponent, container: trackedContainer };
+      }
+      if (followingComponent) {
+        return { mode: "before-component", component: followingComponent, container: trackedContainer };
+      }
+    }
+
+    // The live selection didn't resolve usefully inside this container
+    // (e.g. focus moved to the taskpane and Word Online reset the ambient
+    // selection) — fall back to the tracked component ref.
     const trackedComponent = await getComponentById(context, activeComponentIdRef?.current);
     if (trackedComponent) {
       const anchorPosition = activeAnchorPositionRef?.current === "before" ? "before" : "after";
@@ -1689,60 +1402,33 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
         : { mode: "after-component", component: trackedComponent, container: trackedContainer };
     }
 
-    // No specific active component tracked (e.g. the container is still
-    // completely empty) — fall back to appending at the end.
     return { mode: "container", container: trackedContainer };
   }
 
-  // 2. Fall back to the live selection (covers the case where the user
-  //    manually clicked into a container and our selection-changed handler
-  //    hasn't been registered/fired yet — e.g. very first insert of a
-  //    session, or a platform where addHandlerAsync isn't available).
-  const selection = context.document.getSelection();
-  const { container, selectedComponent } = await getContentControlContext(context, selection);
-
-  if (!container) {
+  if (!liveContainer) {
     const err = new Error("OUTSIDE_CONTAINER");
     err.code = "OUTSIDE_CONTAINER";
     throw err;
   }
 
-  if (selectedComponent) {
-    return { mode: "after-component", component: selectedComponent, container };
+  if (liveSelectedComponent) {
+    return { mode: "after-component", component: liveSelectedComponent, container: liveContainer };
   }
 
-  // Cursor is on the container itself, not inside any specific component —
-  // resolve the nearest adjacent component from the live selection so the
-  // insert still lands where the cursor is pointing, same as the tracked
-  // path above.
-  const { precedingComponent, followingComponent } = await findAdjacentComponents(context, container, selection);
+  const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(context, liveContainer, liveSelection);
+  if (containingComponent) {
+    return { mode: "after-component", component: containingComponent, container: liveContainer };
+  }
   if (precedingComponent) {
-    return { mode: "after-component", component: precedingComponent, container };
+    return { mode: "after-component", component: precedingComponent, container: liveContainer };
   }
   if (followingComponent) {
-    return { mode: "before-component", component: followingComponent, container };
+    return { mode: "before-component", component: followingComponent, container: liveContainer };
   }
 
-  return { mode: "container", container };
+  return { mode: "container", container: liveContainer };
 }
 
-/**
- * Creates the anchor paragraph for a new component, using whichever
- * mechanism matches the target:
- *  - "body": a normal, boundary-free Range insert (used only for the
- *    opener/non-opener containers themselves, appended at the document's
- *    top level — this has always worked reliably).
- *  - "after-component": `ContentControl.insertParagraph(text,
- *    InsertLocation.after)` on the specific child component the cursor was
- *    last on, adding the new paragraph as a sibling immediately after it
- *    (never nested inside it).
- *  - "before-component": same idea, but `InsertLocation.before` — used
- *    when the cursor is above every existing component in the container.
- *  - "container": `ContentControl.insertParagraph`, which safely adds a
- *    new child paragraph inside that specific content control regardless
- *    of whether it already has content, without touching a derived Range
- *    at the control's boundary.
- */
 async function createAnchorParagraph(target, initialText) {
   let paragraph;
   if (target.mode === "after-component") {
@@ -1755,10 +1441,6 @@ async function createAnchorParagraph(target, initialText) {
     paragraph = target.range.insertParagraph(initialText ?? "", target.location);
   }
 
-  // Force this paragraph to actually exist in Word's document model before
-  // asking about (or trying to change) its list membership — detachFromList
-  // queued in the same batch as insertParagraph can silently no-op because
-  // Word hasn't finalized the paragraph's inherited list state yet.
   const context = target.context || paragraph.context;
   paragraph.load("isListItem");
   await context.sync();
@@ -1781,14 +1463,6 @@ function wrapInContentControl(paragraph, meta) {
   return cc;
 }
 
-/**
- * Moves the Word cursor/selection into the given content control immediately
- * after it's inserted, so the user can start typing right away instead of
- * having to click into the new component manually. Best-effort: if select()
- * fails for any reason (e.g. a composite CC without a plain text range), it
- * silently no-ops rather than breaking the insertion flow that already
- * succeeded.
- */
 async function focusContentControl(context, cc, location = Word.RangeLocation.end) {
   try {
     const range = cc.getRange(location);
@@ -1799,39 +1473,12 @@ async function focusContentControl(context, cc, location = Word.RangeLocation.en
   }
 }
 
-/**
- * FIX (bug #1 — quotation not focusing on insert):
- *
- * First attempt derived a plain Range from `quotePara`
- * (`quotePara.getRange(Word.RangeLocation.whole)`) — broken because by the
- * time focus runs, that same paragraph is nested inside TWO content
- * controls (the outer "quotation" box and the inner "quote-text" control),
- * which hits the same boundary ambiguity described elsewhere in this file.
- *
- * Second attempt switched to `contentControl.select(Word.SelectionMode.
- * Selected)` — still unreliable, because every OTHER component in this
- * file that focuses correctly does NOT use that selection-mode argument at
- * all; they all go through `focusContentControl`, which calls
- * `cc.getRange(location)` then plain `range.select()` with no arguments
- * (see above). That's the pattern actually proven to move focus in this
- * add-in, on both Desktop and Web.
- *
- * The real fix: reuse that exact proven pattern, but anchor it to the
- * START of quoteCc specifically, not the end. quoteCc's END is the risky
- * boundary — it sits directly against authorCc's START (they're adjacent
- * siblings), which is the ambiguous case `focusContentControl`'s default
- * `RangeLocation.end` would hit if used here. quoteCc's START has no such
- * problem: it's the very first thing inside the outer "quotation" box, so
- * there is no sibling on that side to be ambiguous with.
- */
 async function focusRange(context, quoteContentControl) {
   try {
     const range = quoteContentControl.getRange(Word.RangeLocation.start);
     range.select();
     await context.sync();
   } catch (err) {
-    // Fallback: if deriving the range still fails for some reason, try
-    // selecting the content control directly as a last resort.
     try {
       quoteContentControl.select();
       await context.sync();
@@ -1841,11 +1488,8 @@ async function focusRange(context, quoteContentControl) {
   }
 }
 
-/**
- * Builds the metadata object embedded in every content-control tag.*/
 function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   const comp = COMPONENTS.find((c) => c.id === id);
-  console.log({ comp })
   return {
     type: id,
     label: comp?.label ?? id,
@@ -1861,46 +1505,24 @@ function buildMeta(id, COMPONENTS, currentFilterTheme = "") {
   };
 }
 
-/**
- * Looks up the style/config that should be applied to a component's text,
- * given only the meta that was embedded in its content-control tag at
- * insertion time (meta.theme + meta.type). This lets us re-apply the
- * correct formatting later — from the selection-changed handler, long
- * after the original COMPONENTS/STYLES/COMPONENT_CONFIG closure that
- * created it is gone — using only what's stored in the tag itself.
- */
 function resolveThemePage(themeId) {
   return (
     THEME_TYPE[themeId] ||
     Object.values(THEME_TYPE).find((p) => p.id === themeId) ||
-    THEME_TYPE[currentFilterTheme] || THEME_TYPE[DEFAULT_THEME]
+    THEME_TYPE[DEFAULT_THEME]
   );
 }
 
-/**
- * Re-applies a component's own defined font/style to its entire current
- * text range. Safe to call after typing, pasting, or reclaiming escaped
- * content — it always resets formatting back to what the component is
- * supposed to look like, regardless of what formatting the new text
- * arrived with (e.g. from a clipboard paste).
- *
- * Deliberately skipped for component types with bespoke, structural
- * layouts (image captions, the icon-with-text table, and the multi-row
- * table component) where blindly re-styling the whole range could damage
- * the embedded picture/table rather than just its text.
- *
- * Also deliberately skipped for "dual" components (a single box that
- * carries TWO distinct styles at once — e.g. a bold prefix label plus a
- * differently-styled body, like the Lesson Overview component on Style 2)
- * — since we only track ONE style per content control here, re-applying it
- * across the whole range would blow away whichever of the two styles
- * (prefix vs. text) currently occupies that portion of the box, silently
- * turning a two-style component into a one-style one. Their formatting is
- * instead left exactly as the user last set it, whether typed or pasted.
- */
 async function reapplyStyleToComponent(context, cc, meta) {
   if (!meta || meta.container) return;
-  if (meta.type === "image" || meta.type === "logo-with-text" || meta.type === "table" || meta.type === "quotation") {
+  if (
+    meta.type === "image" ||
+    meta.type === "logo-with-text" ||
+    meta.type === "table" ||
+    meta.type === "quotation" ||
+    meta.type === "bullet-list" ||
+    meta.type === "numbered-list"
+  ) {
     return;
   }
 
@@ -1916,43 +1538,13 @@ async function reapplyStyleToComponent(context, cc, meta) {
   const config = themePage?.COMPONENT_CONFIG?.[meta.type] || {};
 
   if (config.dual) {
-    // Hidden on purpose — see the note above the function.
     return;
   }
 
   const range = cc.getRange();
-
-  if (meta.type === "bullet-list") {
-    applyStyle(range, themePage?.STYLES?.bulletList || {});
-    return;
-  }
-
-  if (meta.type === "numbered-list") {
-    applyStyle(range, themePage?.STYLES?.numberedList || {});
-    return;
-  }
-
   applyStyle(range, config.style || {});
 }
 
-/**
- * Handles the one Word paste quirk this add-in needs to guard against:
- * selecting 100% of a component's text (including the trailing space right
- * up to the content control's own boundary) and pasting. Word treats that
- * as "delete the current selection, then insert the clipboard content" —
- * and because every component content control has cannotDelete === false,
- * deleting 100% of its content causes Word to automatically remove the
- * (now-empty) content control before the paste lands. The pasted text then
- * gets inserted as a plain, untagged paragraph sitting directly inside the
- * container instead of inside a component.
- *
- * This looks for that exact aftermath — a real, untagged paragraph sitting
- * as a direct child of the container, in the container's body — and
- * re-wraps it with the SAME tag/meta the original component had, then
- * re-applies that component's formatting. From the user's point of view
- * the pasted text simply lands inside the same box, instead of escaping
- * outside of it.
- */
 async function reclaimEscapedContent(context, container, meta, componentMetaCacheRef) {
   if (!meta) return null;
 
@@ -1969,15 +1561,6 @@ async function reclaimEscapedContent(context, container, meta, componentMetaCach
     // eslint-disable-next-line no-await-in-loop
     await context.sync();
 
-    // A paragraph counts as "escaped" if its nearest surrounding content
-    // control is no longer the component we're looking for — either
-    // because there's no surrounding control at all beyond the top-level
-    // container (the common case), or because — for components like
-    // quote-text/quote-author that normally live one level deeper, inside
-    // their own "quotation" wrapper — the nearest control it's now sitting
-    // in is that outer wrapper rather than its own. Either way, real text
-    // sitting there that isn't already wrapped in a control of the exact
-    // same type is text Word "escaped" that we need to re-wrap.
     const parentMeta = parentCc.isNullObject ? null : parseContentControlTag(parentCc.tag);
     const isEscaped = !parentMeta || parentMeta.type !== meta.type;
     const hasRealText = !!paragraphRange.text && paragraphRange.text.trim().length > 0;
@@ -2024,17 +1607,11 @@ async function insertComponent(
       await context.sync();
 
       if (meta.container && activeContainerIdRef) {
-        // If we just created a new container, it becomes the active
-        // container for subsequent inserts, and it starts out with no
-        // active child component yet.
         activeContainerIdRef.current = cc.id;
         if (activeComponentIdRef) {
           activeComponentIdRef.current = null;
         }
       } else if (activeComponentIdRef) {
-        // Otherwise, the component we just inserted becomes the new
-        // "cursor is here" anchor, so the next insert (if the user doesn't
-        // click elsewhere first) lands right after it.
         activeComponentIdRef.current = cc.id;
         if (activeAnchorPositionRef) {
           activeAnchorPositionRef.current = "after";
@@ -2049,15 +1626,6 @@ async function insertComponent(
   });
 }
 
-/**
- * Inserts a brand-new opener/non-opener container, then inserts the
- * originally-requested child component *inside* it.
- *
- * The container's content-control id is captured immediately after
- * creation and used directly to target the child insert — no dependency
- * on document selection surviving the round trip, which is what makes
- * this reliable on Word Online as well as Desktop.
- */
 async function insertComponentInsideNewContainer(
   containerType,
   childId,
@@ -2072,8 +1640,6 @@ async function insertComponentInsideNewContainer(
   componentMetaCacheRef
 ) {
   return Word.run(async (context) => {
-    // 1. Create the container itself (opener / non-opener), always appended
-    //    after the last container in the document.
     log(`[nested-insert] resolving target for container "${containerType}"`);
     const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
@@ -2089,8 +1655,6 @@ async function insertComponentInsideNewContainer(
     await context.sync();
     log(`[nested-insert] container inserted, id=${containerCc.id}`);
 
-    // Immediately mark this new container as active, both for this insert
-    // and for any subsequent ones. It has no active child yet.
     if (activeContainerIdRef) {
       activeContainerIdRef.current = containerCc.id;
     }
@@ -2101,11 +1665,6 @@ async function insertComponentInsideNewContainer(
       activeAnchorPositionRef.current = "after";
     }
 
-    // 2. Insert the child directly into the container we just created.
-    //    `containerCc` is a real ContentControl object at this point (not a
-    //    derived Range), so `mode: "container"` routes this through
-    //    `ContentControl.insertParagraph`, same as every other insert into
-    //    a container — no selection or boundary Range involved.
     log(`[nested-insert] resolving target for child "${childId}"`);
     const childTarget = { mode: "container", container: containerCc };
     const childMeta = buildMeta(childId, childComponents, currentFilterTheme);
@@ -2139,14 +1698,6 @@ async function insertComponentInsideNewContainer(
 }
 
 async function insertComponentAtTarget(target, context, id, meta, config, STYLES) {
-  if (id === "bullet-list") {
-    return insertBulletItem(target, context, meta, STYLES);
-  }
-
-  if (id === "numbered-list") {
-    return insertNumberedListItem(target, context, meta, STYLES);
-  }
-
   if (config.dual) {
     return insertDualTextComponent(
       target,
@@ -2165,10 +1716,6 @@ async function insertComponentAtTarget(target, context, id, meta, config, STYLES
 }
 
 async function insertStyledComponent(target, context, meta, config) {
-  // For containers (opener/non-opener), the wrapping paragraph must have
-  // real, non-empty content from the very start so the container never
-  // shows Word's built-in "Click or tab here to enter text" placeholder
-  // hint before anything is inserted into it.
   const initialText = meta.container ? (meta.placeholder || " ") : meta.placeholder;
 
   const paragraph = await createAnchorParagraph(target, "");
@@ -2181,14 +1728,9 @@ async function insertStyledComponent(target, context, meta, config) {
   await context.sync();
 
   if (meta.container) {
-    // No selection juggling needed here — activeContainerIdRef (set by the
-    // caller right after this returns) is what makes this container the
-    // target for the next insert, not the document selection.
     return cc;
   }
   const body = paragraph.getRange();
-  // const body = cc.getRange();
-  // body.insertText(" ", Word.InsertLocation.end);
   if (config.style) {
     applyStyle(body, config.style);
   }
@@ -2207,31 +1749,6 @@ function applyStyle(range, style) {
   }
 }
 
-/**
- * Same idea as applyStyle, but deliberately leaves font.highlightColor
- * alone. Quotation's box background comes from paragraph.shading (a
- * paragraph-level fill), and applyStyle's habit of forcing highlightColor
- * to white when a style has no backgroundColor would paint a white
- * highlight behind every character and wash out that shading.
- *
- * FIX (bug #2 — quotation inheriting a neighbouring component's style,
- * e.g. a Header's bold/size/color):
- *
- * Previously every property here was assigned directly from `style`
- * (`style.font`, `style.size`, `style.color`, ...) with NO fallback.
- * Assigning `undefined` to a Word JS API font property is effectively a
- * no-op — Word just leaves whatever formatting was already on the run,
- * which for a brand-new paragraph anchored right after a Header is that
- * Header's own bold/large/colored font. So whenever a theme's
- * `quoteStyle`/`authorStyle` config was missing one of these fields, the
- * neighbouring component's look silently showed through instead.
- *
- * The fix is to always fully resolve every property to a concrete value
- * (falling back to sane defaults when the config doesn't specify one), so
- * this function ALWAYS fully overrides the run's formatting instead of
- * leaving gaps for inherited formatting to leak through. Also explicitly
- * resets italic/underline, which the old version didn't touch at all.
- */
 function applyQuoteFont(range, style = {}) {
   range.font.name = style.font || "Calibri";
   range.font.size = style.size || 11;
@@ -2254,62 +1771,22 @@ async function insertDualTextComponent(target, context, meta, config) {
   return cc;
 }
 
-/**
- * Core figure-image insertion logic, decoupled from how the insertion
- * target was resolved. Shared by insertFigureImage (inserts into whichever
- * container/component is already active) and insertContainerThenImage
- * (creates a brand-new container first, then inserts into it) so the two
- * flows can never drift apart.
- *
- * `imageSettings` (widthPct / altText / position) — chosen by the user via
- * the width slider, alt-text field, and position toggle in the taskpane —
- * are applied to both the inline picture itself (actual Word width/
- * alignment/altTextDescription) AND embedded into the wrapping content
- * control's tag, so they survive round-trips and can be read back out
- * later (see readImageSettingsFromMeta / collectImageMetadata) whenever
- * the user manually resizes/repositions the picture in Word itself, and so
- * they can be handed to the backend PDF/web-view generators.
- */
 async function insertImageAtTarget(target, context, base64, meta, imageSettings = DEFAULT_IMAGE_SETTINGS) {
   const settings = { ...DEFAULT_IMAGE_SETTINGS, ...imageSettings };
   const widthPct = clampImageWidthPct(settings.widthPct);
 
-  // 1. Create the anchor paragraph and insert the image into it.
   const imagePara = await createAnchorParagraph(target, "");
   const img = imagePara.insertInlinePictureFromBase64(base64, Word.InsertLocation.start);
-  // Word's inline picture width is in points, not a percentage — 414pt was
-  // the previous fixed width and stands in for "100% of the figure's usual
-  // display width" here, so widthPct scales relative to that same 414pt
-  // baseline (e.g. 50% -> 207pt).
   img.width = Math.round((widthPct / 100) * 414);
   img.altTextDescription = settings.altText || "";
   imagePara.alignment = resolveWordAlignment(settings.position);
   await context.sync();
 
-  // 2. Wrap ONLY the image paragraph in its content control first — same
-  //    boundary-safe pattern used everywhere else in this file
-  //    (wrapInContentControl). We deliberately do NOT build a combined
-  //    Range via startRange.expandTo(endRange) across two independently
-  //    created paragraphs: that derived Range can snap outward to the
-  //    surrounding container's own boundary on Word Web, which is what
-  //    caused the figure content control to wrap the whole container
-  //    instead of just the image + caption.
   const meta_ = { ...meta, image: { widthPct, altText: settings.altText || "", position: settings.position } };
   const cc = wrapInContentControl(imagePara, meta_);
   await context.sync();
 
-  // 3. Add the caption as a genuine child of the figure's own content
-  //    control via ContentControl.insertParagraph — the same
-  //    "sanctioned add-a-child" method used for container inserts
-  //    elsewhere in the file — so the caption ends up nested inside the
-  //    figure's cc, not outside it.
   const captionPara = cc.insertParagraph(" Caption text here.", Word.InsertLocation.end);
-  // A new paragraph inserted this way inherits the formatting of the
-  // paragraph before it — here, the image paragraph, whose alignment was
-  // just set to left/center/right per the chosen position. The caption
-  // must always start at the beginning of the line regardless of where
-  // the image itself is positioned, so pin it explicitly instead of
-  // letting it silently follow the image's alignment.
   captionPara.alignment = Word.Alignment.left;
   const caption = captionPara.insertText("FIGURE 1.1", Word.InsertLocation.start);
   caption.font.bold = true;
@@ -2341,9 +1818,6 @@ function resolvePositionFromWordAlignment(alignment) {
 async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef, imageSettings) {
   return Word.run(async (context) => {
     const meta = buildMeta("image", COMPONENTS, currentFilterTheme);
-    // Same rule as every other component: if there's no active container to
-    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
-    // the user to pick/create an Opener or Non Opener first.
     const target = await getInsertionTarget(context, "image", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const cc = await insertImageAtTarget(target, context, base64, meta, imageSettings);
 
@@ -2363,11 +1837,6 @@ async function insertFigureImage(base64, COMPONENTS, currentFilterTheme, activeC
   });
 }
 
-/**
- * Creates a brand-new opener/non-opener container, then inserts the figure
- * image inside it. Used by the "Select Container" modal when the pending
- * component was an image and there was no active container to insert into.
- */
 async function insertContainerThenImage(
   containerType,
   base64,
@@ -2425,66 +1894,12 @@ async function insertContainerThenImage(
   });
 }
 
-async function insertBulletItem(target, context, meta, STYLES) {
-  const p = await createAnchorParagraph(target, "");
-  const r = p.getRange();
-  applyStyle(r, STYLES.bulletList);
-  p.startNewList();
-  p.listItem.level = 0;
-  await context.sync();
-  const cc = wrapInContentControl(p, meta);
-  await context.sync();
-  return cc;
-}
-
-// New: same shape as insertBulletItem, but overrides the list level to
-// render Arabic numerals (1, 2, 3…) instead of the bulleted default
-// startNewList() gives you.
-async function insertNumberedListItem(target, context, meta, STYLES) {
-  const p = await createAnchorParagraph(target, "");
-  const r = p.getRange();
-  applyStyle(r, STYLES.numberedList);
-  p.startNewList();
-  p.listItem.level = 0;
-  await context.sync();
-
-  // Wrap FIRST — same order as insertBulletItem — so the paragraph is a
-  // fully-settled, independent node in the document (and a valid
-  // insertion anchor for whatever gets added next to it) before we touch
-  // the list's numbering definition at all.
-  const cc = wrapInContentControl(p, meta);
-  await context.sync();
-
-  const list = p.listOrNullObject;
-  list.load("isNullObject");
-  await context.sync();
-  if (!list.isNullObject) {
-    list.setLevelNumbering(0, Word.ListNumbering.arabic);
-    await context.sync();
-  }
-
-  return cc;
-}
-
-/**
- * Core "Icon with Text" (logo-with-text) insertion logic, decoupled from
- * how the insertion target was resolved. Shared by insertLinkToLearning
- * (inserts into whichever container/component is already active) and
- * insertContainerThenLinkToLearning (creates a brand-new container first,
- * then inserts into it).
- */
 async function insertLinkToLearningAtTarget(target, context, base64, mimeType, meta) {
   const platform = String(
     Office?.context?.platform || Office?.context?.diagnostics?.platform || ""
   ).toLowerCase();
   const isWordWeb = platform.includes("online") || platform.includes("web");
 
-  // Anchor a real, throwaway paragraph first — either as a genuine child
-  // of the container (via ContentControl.insertParagraph), immediately
-  // after the active component, or at the document body level. This
-  // paragraph is now a normal node in the document, not a boundary-derived
-  // Range, so replacing ITS range with html/a table is safe wherever it
-  // landed.
   const anchorParagraph = await createAnchorParagraph(target, "");
   await context.sync();
   const anchorRange = anchorParagraph.getRange();
@@ -2569,9 +1984,6 @@ async function insertLinkToLearningAtTarget(target, context, base64, mimeType, m
 async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
     const meta = buildMeta("logo-with-text", COMPONENTS, currentFilterTheme);
-    // Same rule as every other component: if there's no active container to
-    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
-    // the user to pick/create an Opener or Non Opener first.
     const target = await getInsertionTarget(context, "logo-with-text", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const cc = await insertLinkToLearningAtTarget(target, context, base64, mimeType, meta);
 
@@ -2590,12 +2002,6 @@ async function insertLinkToLearning(base64, mimeType = "image/png", COMPONENTS, 
   });
 }
 
-/**
- * Creates a brand-new opener/non-opener container, then inserts the
- * "Icon with Text" component inside it. Used by the "Select Container"
- * modal when the pending component was logo-with-text and there was no
- * active container to insert into.
- */
 async function insertContainerThenLinkToLearning(
   containerType,
   base64,
@@ -2653,212 +2059,13 @@ async function insertContainerThenLinkToLearning(
   });
 }
 
-/**
- * Core table insertion logic, decoupled from how the insertion target was
- * resolved — same shared-core pattern used for images and logo-with-text.
- *
- * Uses the native Word.Table API (`Range.insertTable` + `Table.mergeCells`)
- * instead of a hand-built OOXML fragment. Raw `<w:tbl>` OOXML fragments
- * passed to `insertOoxml` are unreliable — they can silently fail or need
- * several seconds/keystrokes to materialize, especially on Word Online —
- * whereas `insertTable`/`mergeCells` are regular, fully-supported Word JS
- * API calls (WordApi 1.4+) that behave the same on Desktop and Web.
- */
-async function insertTableAtTarget(target, context, rows, cols, meta) {
-  // IMPORTANT: Word.Table has no insertContentControl() method — only
-  // Body/Paragraph/Range/ContentControl do. So we can't build the table
-  // first and wrap it afterwards (that silently threw and left a bare,
-  // unwrapped table behind). Instead we wrap the anchor paragraph in the
-  // content control FIRST, then use ContentControl.insertTable(...) — the
-  // API Word provides specifically for placing a table inside/next to an
-  // existing content control — so the table ends up properly bounded.
-  const anchorParagraph = await createAnchorParagraph(target, "");
-  const cc = wrapInContentControl(anchorParagraph, meta);
-  await context.sync();
-
-  const data = Array.from({ length: rows }, () => Array.from({ length: cols }, () => " "));
-  const table = cc.insertTable(rows, cols, Word.InsertLocation.end, data);
-  await context.sync();
-
-  // Simple visible grid, matching the styling used elsewhere in the file.
-  [
-    Word.BorderLocation.top,
-    Word.BorderLocation.bottom,
-    Word.BorderLocation.left,
-    Word.BorderLocation.right,
-    Word.BorderLocation.insideHorizontal,
-    Word.BorderLocation.insideVertical,
-  ].forEach((borderLocation) => {
-    const border = table.getBorder(borderLocation);
-    border.type = Word.BorderType.single;
-    border.color = "#BFBFBF";
-  });
-
-  // Merge every cell in the first row into a single header cell spanning
-  // the full table width, then center and bold its text.
-  const headerCell = cols > 1 ? table.mergeCells(0, 0, 0, cols - 1) : table.getCell(0, 0);
-  headerCell.body.clear();
-  const headerRange = headerCell.body.insertText("Header", Word.InsertLocation.start);
-  headerRange.font.bold = true;
-  headerCell.body.paragraphs.getFirst().alignment = Word.Alignment.centered;
-  await context.sync();
-
-  return cc;
-}
-
-async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
-  return Word.run(async (context) => {
-    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
-    // Same rule as every other component: if there's no active container to
-    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
-    // the user to pick/create an Opener or Non Opener first.
-    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
-    const cc = await insertTableAtTarget(target, context, rows, cols, meta);
-
-    if (cc && activeComponentIdRef) {
-      cc.load("id");
-      await context.sync();
-      activeComponentIdRef.current = cc.id;
-      if (activeAnchorPositionRef) {
-        activeAnchorPositionRef.current = "after";
-      }
-      if (componentMetaCacheRef) {
-        componentMetaCacheRef.current[cc.id] = meta;
-      }
-      await focusContentControl(context, cc);
-    }
-  });
-}
-
-/**
- * Creates a brand-new opener/non-opener container, then inserts the table
- * inside it. Used by the "Select Container" modal when the pending
- * component was a table and there was no active container to insert into.
- */
-async function insertContainerThenTable(
-  containerType,
-  rows,
-  cols,
-  COMPONENTS,
-  activeContainerIdRef,
-  activeComponentIdRef,
-  activeAnchorPositionRef,
-  log = () => { },
-  currentFilterTheme,
-  componentMetaCacheRef
-) {
-  return Word.run(async (context) => {
-    log(`[nested-insert] resolving target for container "${containerType}"`);
-    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
-    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
-
-    const containerCc = await insertStyledComponent(
-      containerTarget,
-      context,
-      containerMeta,
-      { style: {} }
-    );
-    containerCc.load("id");
-    await context.sync();
-    log(`[nested-insert] container inserted, id=${containerCc.id}`);
-
-    if (activeContainerIdRef) {
-      activeContainerIdRef.current = containerCc.id;
-    }
-    if (activeComponentIdRef) {
-      activeComponentIdRef.current = null;
-    }
-    if (activeAnchorPositionRef) {
-      activeAnchorPositionRef.current = "after";
-    }
-
-    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
-    const childTarget = { mode: "container", container: containerCc };
-    const cc = await insertTableAtTarget(childTarget, context, rows, cols, meta);
-
-    if (cc && activeComponentIdRef) {
-      cc.load("id");
-      await context.sync();
-      activeComponentIdRef.current = cc.id;
-      if (activeAnchorPositionRef) {
-        activeAnchorPositionRef.current = "after";
-      }
-      if (componentMetaCacheRef) {
-        componentMetaCacheRef.current[cc.id] = meta;
-      }
-      await focusContentControl(context, cc);
-    }
-    log(`[nested-insert] table inserted successfully`);
-  });
-}
-
-/**
- * Core quotation insertion logic, decoupled from how the insertion target
- * was resolved — same shared-core pattern used for images/tables.
- *
- * Produces ONE outer bounding content control (tag.type === "quotation")
- * that contains two independently-tagged child content controls nested
- * inside it: the quote line (tag.type === "quote-text") and the author
- * line (tag.type === "quote-author", tag.parent === "quotation"). Keeping
- * them as two separate content controls — instead of one blended
- * paragraph like the figure-caption/lesson-overview "dual" pattern — is
- * what lets the Python extraction pipeline pull the quote text and the
- * author line out separately and hand back clean JSON.
- *
- * FIX (bug #2 — style bleed from a neighbouring component, e.g. a Header):
- * `createAnchorParagraph` inserts the quote paragraph as a sibling of
- * whatever paragraph it's anchored next to (via `insertParagraph`), and
- * Word's `insertParagraph` copies the PARAGRAPH STYLE (not just character
- * formatting) of that reference paragraph — e.g. a Header component's
- * "Heading"-type paragraph style, complete with its own bold/size/color.
- * `applyQuoteFont` only overrides character-level run formatting, so a
- * paragraph that inherited a Heading style could still visually look like
- * the header for anything applyQuoteFont didn't explicitly set. Both
- * `quotePara` and `authorPara` are now reset to the built-in "Normal"
- * paragraph style immediately after creation, before any other formatting
- * is applied — so the quote box's look comes ENTIRELY from the explicit
- * indent/spacing/shading/font calls below, never from whatever paragraph
- * happened to sit next to it.
- *
- * FIX (bug #3 — background shading not showing in Word):
- * The shading assignment is now applied twice: once right after the two
- * paragraphs exist (so it's visible immediately), and again at the very
- * end after both inner content controls (quoteCc/authorCc) have been
- * wrapped — re-asserting it last guarantees nothing later in this
- * function (the two additional `insertContentControl` wraps) can leave
- * the paragraph in a state where the shading never actually got
- * committed/synced.
- */
 async function insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme) {
   const backgroundColor = config.backgroundColor || "#C9D9C5";
   const quoteStyle = config.quoteStyle || {};
   const authorStyle = config.authorStyle || {};
 
-  // 1. The quote paragraph carries real content from the start and is
-  //    wrapped as the outer "quotation" box FIRST — this is the same
-  //    boundary-safe, no-leftover-blank-line pattern used for tables:
-  //    wrap real content, don't wrap-then-fill an empty placeholder.
   const quotePara = await createAnchorParagraph(target, "\u201CQuotation text goes here.\u201D");
 
-  // FIX ("API is not found" error when inserting quotation into a new
-  // container): `paragraph.style = "Normal"` and `paragraph.shading.
-  // backgroundColor` are NOT used anywhere else in this file, and a Word
-  // JS API call that isn't supported by the current Word host only
-  // reports that failure when the batch is actually sent via
-  // `context.sync()` — with error code "ApiNotFound". Previously these
-  // two calls were unguarded, so on any host where either isn't
-  // supported (e.g. an older Word Desktop build, or a style named
-  // something other than "Normal" in a differently-localized template),
-  // the sync() call throws, the whole insertQuotationAtTarget call
-  // rejects, and the container-modal flow surfaces that raw error instead
-  // of completing the insert. Both are now best-effort: wrapped in
-  // try/catch with their own dedicated sync(), exactly the same
-  // "non-fatal, cosmetic-only" pattern already used everywhere else in
-  // this file (see focusContentControl, refreshThemeLockState, etc.) —
-  // so an unsupported host still gets a fully-inserted, correctly-tagged,
-  // correctly-focused quotation; it just silently skips the paragraph
-  // style reset and/or the tinted background on that host instead of
-  // failing the whole insert.
   try {
     quotePara.style = "Normal";
     await context.sync();
@@ -2870,13 +2077,7 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
   const outerCc = wrapInContentControl(quotePara, outerMeta);
   await context.sync();
 
-  // 2. Add the author line as a genuine second child of the outer CC via
-  //    ContentControl.insertParagraph — the same "sanctioned add-a-child"
-  //    method used for containers/tables elsewhere in this file.
   const authorPara = outerCc.insertParagraph("  \u2014Author Name, Source", Word.InsertLocation.end);
-  // authorPara is inserted as a sibling of quotePara, which by this point
-  // is already "Normal" (or, on a host that doesn't support the style
-  // reset, whatever it inherited) — reset it too, same best-effort way.
   try {
     authorPara.style = "Normal";
     await context.sync();
@@ -2884,15 +2085,6 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
     // Non-fatal — proceed without the paragraph style reset.
   }
 
-  // 3. Style both lines as one shared "box": indent + spacing are basic
-  //    WordApi 1.1 paragraph properties, already proven safe throughout
-  //    this file, so they're applied unconditionally. Background shading
-  //    (Paragraph.shading) needs a newer WordApi version that not every
-  //    Word host supports, so it's split into its own best-effort helper
-  //    — applied once here and re-applied once more at the very end (see
-  //    below) — so a host that can't shade paragraphs still gets a
-  //    correctly-indented, correctly-fonted, correctly-focused quotation,
-  //    just without the tinted background.
   [quotePara, authorPara].forEach((para) => {
     para.leftIndent = 8;
     para.rightIndent = 8;
@@ -2912,14 +2104,11 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
       });
       await context.sync();
     } catch (err) {
-      // Non-fatal — background shading isn't supported on every Word
-      // host; skip it rather than failing the whole insert.
+      // Non-fatal — background shading isn't supported on every Word host.
     }
   };
   await applyBoxShading();
 
-  // 4. Nest the quote and author lines EACH in their own content control,
-  //    tagged distinctly, inside the outer "quotation" content control.
   const quoteMeta = { ...buildMeta("quote-text", [], currentFilterTheme), parent: "quotation" };
   const quoteCc = wrapInContentControl(quotePara, quoteMeta);
 
@@ -2928,9 +2117,6 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
 
   await context.sync();
 
-  // Re-assert the shading once more now that both inner content controls
-  // exist, best-effort, same as above — guarantees it sticks on hosts
-  // that support it, without risk to hosts that don't.
   await applyBoxShading();
 
   return { outerCc, quoteCc, authorCc, quoteMeta, authorMeta, quotePara };
@@ -2938,9 +2124,6 @@ async function insertQuotationAtTarget(target, context, COMPONENTS, config, curr
 
 async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
   return Word.run(async (context) => {
-    // Same rule as every other component: if there's no active container to
-    // insert into, this throws OUTSIDE_CONTAINER so the caller can prompt
-    // the user to pick/create an Opener or Non Opener first.
     const target = await getInsertionTarget(context, "quotation", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
     const config = COMPONENT_CONFIG["quotation"] || {};
     const { outerCc, quoteCc, authorCc, quoteMeta, authorMeta } = await insertQuotationAtTarget(target, context, COMPONENTS, config, currentFilterTheme);
@@ -2958,20 +2141,11 @@ async function insertQuotationComponent(COMPONENTS, COMPONENT_CONFIG, currentFil
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
       }
-      // FIX (bug #1): focus the quote's own content control directly
-      // instead of deriving a Range from the (now doubly-wrapped) quote
-      // paragraph — see the fix note above focusRange.
       await focusRange(context, quoteCc);
     }
   });
 }
 
-/**
- * Creates a brand-new opener/non-opener container, then inserts the
- * quotation inside it. Used by the "Select Container" modal when the
- * pending component was a quotation and there was no active container to
- * insert into.
- */
 async function insertContainerThenQuotation(
   containerType,
   COMPONENTS,
@@ -3024,31 +2198,12 @@ async function insertContainerThenQuotation(
         componentMetaCacheRef.current[quoteCc.id] = quoteMeta;
         componentMetaCacheRef.current[authorCc.id] = authorMeta;
       }
-      // FIX (bug #1): same as insertQuotationComponent above — focus the
-      // quote's own content control directly.
       await focusRange(context, quoteCc);
     }
     log(`[nested-insert] quotation inserted successfully`);
   });
 }
 
-/**
- * Scans the whole document for every image-type content control (tag.type
- * === "image") and reads back its CURRENT live width/alt-text/position
- * straight from the actual Word inline picture and paragraph alignment —
- * not from our cached meta — so that if the user manually resized,
- * retyped alt text via Word's own "Edit Alt Text" pane, or realigned the
- * picture directly in Word (instead of using our slider/fields), those
- * manual changes are still picked up and reflected correctly.
- *
- * The width is reported back as a percentage using the same 414pt
- * baseline used when inserting (see insertImageAtTarget), so it lines up
- * with the widthPct scale the slider uses.
- *
- * Called right before uploading the document for PDF/web generation so
- * the backend renderers can lay out each figure exactly as it currently
- * looks in Word.
- */
 async function collectImageMetadata() {
   const metadata = [];
   try {
@@ -3083,8 +2238,7 @@ async function collectImageMetadata() {
       }
     });
   } catch (err) {
-    // Best-effort — if this fails for any reason, ship the upload without
-    // per-image metadata rather than blocking the whole publish flow.
+    // Best-effort — if this fails, ship the upload without per-image metadata.
   }
   return metadata;
 }

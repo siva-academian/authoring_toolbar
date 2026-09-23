@@ -78,13 +78,6 @@ export const THEME1_COMPONENTS = [
     placeholder: "FIGURE 1.1",
   },
   {
-    id: "bullet-list",
-    label: "Bullet List",
-    preview: "• Type your list item here",
-    category: "text-media",
-    placeholder: "• ",
-  },
-  {
     id: "logo-with-text",
     label: "Logo with Text",
     description: "Small logo + editable learning link text",
@@ -151,15 +144,7 @@ export const THEME1_STYLES = {
     bold: false,
   },
   paragrapghText: {
-    // Updated per style table: font family changed from "Arial" to
-    // "IBM Flex Sans Regular" for Theme 1 body paragraphs.
     font: "IBM Flex Sans Regular,Arial",
-    size: 9,
-    color: "#000000",
-    bold: false,
-  },
-  bulletList: {
-    font: "Arial",
     size: 9,
     color: "#000000",
     bold: false,
@@ -246,16 +231,11 @@ export const THEME2_COMPONENTS = [
   {
     id: "chapter-title",
     label: "Chapter Title",
-    // Updated per style table: "An overview of Marketing" -> "An Overview of Marketing"
     preview: "An Overview of Marketing",
     category: "header",
     placeholder: "An Overview of Marketing",
   },
   {
-    // New per style table: Theme 2 now has its own "Chapter Overview"
-    // component alongside the existing "Learning Objectives" one. Added
-    // here rather than replacing "learning-objectives" below, since the
-    // table didn't say to remove or rename anything.
     id: "chapter-overview",
     label: "Chapter Overview",
     preview: "Learning Outcomes",
@@ -263,9 +243,6 @@ export const THEME2_COMPONENTS = [
     placeholder: "Learning Outcomes",
   },
   {
-    // Updated per style table: Theme 2's Lesson Overview is now a dual
-    // (prefix + text) component, matching Figure Caption's pattern, so the
-    // "1-1" prefix can be styled separately from the rest of the text.
     id: "lesson-overview",
     label: "Lesson Overview",
     preview: " Define the term marketing",
@@ -307,20 +284,6 @@ export const THEME2_COMPONENTS = [
     preview: "Start typing your text here...",
     category: "text-media",
     placeholder: "",
-  },
-  {
-    id: "bullet-list",
-    label: "Bullet List",
-    preview: "• Type your list item here",
-    category: "text-media",
-    placeholder: "• Type your list item here",
-  },
-  {
-    id: "numbered-list",
-    label: "Numbered List",
-    preview: "1. Type your list item here",
-    category: "text-media",
-    placeholder: "1. Type your list item here",
   },
   {
     id: "image",
@@ -370,7 +333,6 @@ export const THEME2_STYLES = {
     bold: false,
   },
 
-  // New per style table: style for the new "chapter-overview" component.
   chapterOverview: {
     font: "Neue Kabel Medium, Arial",
     size: 15,
@@ -379,8 +341,6 @@ export const THEME2_STYLES = {
   },
 
   paragraphText: {
-    // Updated per style table: font family changed from "Arial" to
-    // "Neue Kabel Regular" for Theme 2 body paragraphs.
     font: "Neue Kabel Regular, Arial",
     size: 10,
     color: "#000000",
@@ -394,8 +354,6 @@ export const THEME2_STYLES = {
     bold: true,
   },
 
-  // Updated per style table: now a dual (prefix + text) style, matching
-  // `caption` above, instead of a single flat style.
   lessonOverview: {
     text: {
       font: "Neue Kabel, Arial",
@@ -432,24 +390,6 @@ export const THEME2_STYLES = {
     bold: false,
   },
 
-  numberedList: {
-    font: "A Garamond Pro Regular, Arial",
-    size: 11,
-    color: "#000000",
-    bold: false,
-  },
-
-  bulletList: {
-    font: "A Garamond Pro Regular, Arial",
-    size: 11,
-    color: "#000000",
-    bold: false,
-  },
-
-  // New: Quotation styling for Theme 2 — see THEME1_STYLES.quotationText /
-  // quotationAuthor above for the rationale (kept as two separate style
-  // objects since the quote and author lines are two separate content
-  // controls).
   quotationText: {
     font: "Arial",
     size: 13,
@@ -529,8 +469,6 @@ export const THEME2_COMPONENT_CONFIG = {
     style: THEME2_STYLES.subSectionHeading,
   },
 
-  // New: background/box color + per-line text styles used by
-  // insertQuotationAtTarget in App.js.
   "quotation": {
     backgroundColor: "#C1D4C3",
     quoteStyle: THEME2_STYLES.quotationText,
