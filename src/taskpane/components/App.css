@@ -840,7 +840,7 @@ layoutctl-panel {
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -848,7 +848,7 @@ layoutctl-panel {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c0cdd2;
+  background: #797775;
   border-radius: 4px;
 }
 

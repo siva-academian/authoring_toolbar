@@ -995,7 +995,7 @@ export default function App() {
                 {textMediaComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
-                {currentFilterTheme === "theme2" && (
+                {(currentFilterTheme === "theme2" || currentFilterTheme === "theme1") && (
                   <button
                     className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
                     onClick={handleTableClick}
