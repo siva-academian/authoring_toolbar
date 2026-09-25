@@ -114,6 +114,9 @@ export default function App() {
   const [showContainerModal, setShowContainerModal] = useState(false);
   const [pendingComponent, setPendingComponent] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableRows, setTableRows] = useState("2");
+  const [tableCols, setTableCols] = useState("2");
   const abortControllerRef = useRef(null);
   const [hasAnyComponent, setHasAnyComponent] = useState(false);
 
@@ -121,6 +124,15 @@ export default function App() {
   const activeComponentIdRef = useRef(null);
   const activeAnchorPositionRef = useRef("after");
   const componentMetaCacheRef = useRef({});
+  // Remembers each component's last-seen text, keyed by content-control id.
+  // Used by the DocumentSelectionChanged handler below to tell "the user
+  // just typed/pasted new content into this component" (text changed since
+  // last visit -- re-apply the component's base style so it inherits the
+  // right look) apart from "the user just clicked back into text they
+  // already have" (text unchanged -- leave it alone so any manual
+  // bold/italic/underline/color formatting they applied isn't stripped
+  // back out every time the cursor re-enters the control).
+  const componentTextCacheRef = useRef({});
 
   const pageConfig =
     THEME_TYPE[currentFilterTheme ?? DEFAULT_THEME] ||
@@ -221,8 +233,29 @@ export default function App() {
               const meta = parseContentControlTag(selectedComponent.tag);
               if (meta) {
                 componentMetaCacheRef.current[selectedComponent.id] = meta;
-                await reapplyStyleToComponent(context, selectedComponent, meta);
+
+                // Only re-apply the component's base style when its text
+                // has actually changed since the last time the cursor was
+                // inside it (i.e. the user typed or pasted new content).
+                // If the text is unchanged, blindly re-applying the base
+                // style on every re-entry would strip out any manual
+                // formatting (bold/italic/underline/color) the user just
+                // added -- this is exactly what was happening for
+                // paragraph-text (visited/re-entered far more often while
+                // writing than a short header line ever is), even though
+                // the underlying code path was identical for every
+                // component type.
+                const componentRange = selectedComponent.getRange();
+                componentRange.load("text");
                 await context.sync();
+                const currentText = componentRange.text;
+                const lastSeenText = componentTextCacheRef.current[selectedComponent.id];
+
+                if (lastSeenText === undefined || lastSeenText !== currentText) {
+                  await reapplyStyleToComponent(context, selectedComponent, meta);
+                  await context.sync();
+                }
+                componentTextCacheRef.current[selectedComponent.id] = currentText;
               }
               resolvedAnchorPosition = "after";
             }
@@ -475,6 +508,39 @@ export default function App() {
     }
   };
 
+  const handleTableClick = () => {
+    setShowTableModal(true);
+    setStatus("");
+  };
+
+  const handleTableInsert = async () => {
+    const rows = parseInt(tableRows, 10);
+    const cols = parseInt(tableCols, 10);
+    if (!rows || rows < 1 || !cols || cols < 1) {
+      setStatus("✗ Please enter valid rows and columns.");
+      return;
+    }
+    setLoading("table");
+    setStatus("");
+    try {
+      await insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef);
+      setStatus("✓ Table inserted.");
+      setShowTableModal(false);
+    } catch (err) {
+      if (err.code === "OUTSIDE_CONTAINER") {
+        setShowTableModal(false);
+        setPendingComponent("table");
+        setShowContainerModal(true);
+        return;
+      }
+      setStatus(`✗ Error: ${err.message || "Table insert failed."}`);
+    } finally {
+      setLoading(null);
+      setTimeout(() => setStatus(""), 2000);
+      refreshThemeLockState();
+    }
+  };
+
   const DOCX_MIME =
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -719,6 +785,23 @@ export default function App() {
         setLinkImagePreview(null);
         if (linkFileInputRef.current) linkFileInputRef.current.value = "";
         setStatus("✓ Logo with Text inserted.");
+      } else if (pendingComponent === "table") {
+        const rows = parseInt(tableRows, 10) || 2;
+        const cols = parseInt(tableCols, 10) || 2;
+        await insertContainerThenTable(
+          containerType,
+          rows,
+          cols,
+          COMPONENTS,
+          activeContainerIdRef,
+          activeComponentIdRef,
+          activeAnchorPositionRef,
+          log,
+          currentFilterTheme,
+          componentMetaCacheRef
+        );
+        setShowTableModal(false);
+        setStatus("✓ Table inserted.");
       } else if (pendingComponent === "quotation") {
         await insertContainerThenQuotation(
           containerType,
@@ -912,6 +995,20 @@ export default function App() {
                 {textMediaComponents.map((comp) =>
                   renderComponentCard({ comp, loading, handleCardClick, themeId: pageConfig.id })
                 )}
+                {currentFilterTheme === "theme2" && (
+                  <button
+                    className={`component-card${loading === "table" ? " component-card--loading" : ""}`}
+                    onClick={handleTableClick}
+                    disabled={!!loading}
+                    aria-label="Insert Table"
+                  >
+                    <div className="component-card-top">
+                      <span className="component-card-label">
+                        {loading === "table" ? "Inserting…" : "Table"}
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             </section>
             <div className="section-divider" />
@@ -960,28 +1057,6 @@ export default function App() {
                       className="image-adjust-panel"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="image-adjust-row">
-                        <label className="image-adjust-label" htmlFor="image-width-slider">
-                          Width :
-                        </label>
-                        <input
-                          id="image-width-slider"
-                          type="range"
-                          className="image-width-slider"
-                          min={IMAGE_WIDTH_MIN_PCT}
-                          max={IMAGE_WIDTH_MAX_PCT}
-                          step="1"
-                          value={imageSettings.widthPct}
-                          onChange={(e) =>
-                            setImageSettings((prev) => ({
-                              ...prev,
-                              widthPct: Number(e.target.value),
-                            }))
-                          }
-                        />
-                        <span className="image-adjust-value">{imageSettings.widthPct}%</span>
-                      </div>
-
                       <div className="image-adjust-row">
                         <label className="image-adjust-label" htmlFor="image-alt-text">
                           Alt Text :
@@ -1155,6 +1230,60 @@ export default function App() {
         )}
       </main>
       {
+        showTableModal && (
+          <div className="container-modal-overlay" onClick={() => setShowTableModal(false)}>
+            <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="image-modal-header">
+                <h3>Insert Table</h3>
+              </div>
+              <section className="image-section">
+                <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Rows
+                    <input
+                      type="number"
+                      className="rows-input"
+                      min="1"
+                      max="20"
+                      value={tableRows}
+                      onChange={(e) => setTableRows(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", fontSize: "13px" }}>
+                    Columns
+                    <input
+                      type="number"
+                      className="cols-input"
+                      min="1"
+                      max="10"
+                      value={tableCols}
+                      onChange={(e) => setTableCols(e.target.value)}
+                      style={{ width: "70px", marginTop: "4px", padding: "4px" }}
+                    />
+                  </label>
+                </div>
+                <div className="image-actions">
+                  <button
+                    className="insert-btn"
+                    onClick={handleTableInsert}
+                    disabled={loading === "table"}
+                  >
+                    {loading === "table" ? "Inserting…" : "Insert into Word"}
+                  </button>
+                  <button
+                    className="cancel-btn"
+                    onClick={() => setShowTableModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+        )
+      }
+      {
         showContainerModal && (
           <div className="container-modal-overlay">
             <div className="container-modal">
@@ -1215,13 +1344,6 @@ async function getContentControlContext(context, selection) {
   let current = await resolveParentContentControlOrNull(context, selection);
 
   if (!current) {
-    // A selection that exactly matches a content control's boundaries
-    // (e.g. the whole component is highlighted) can make Word return a
-    // null parent for the selection itself — a known boundary quirk.
-    // Ask Word directly which content control(s) are fully contained
-    // within the selection instead of probing the selection's edges
-    // (probing an edge is ambiguous: it sits exactly on the boundary
-    // with a sibling component and can resolve to the wrong one).
     const contained = selection.contentControls;
     contained.load("items");
     await context.sync();
@@ -1286,11 +1408,6 @@ async function findAdjacentComponents(context, container, selectionRange) {
     } else if (relation === "After" && !followingComponent) {
       followingComponent = cc;
     } else if (relation !== "Before" && relation !== "After") {
-      // The selection sits at least partly inside this component's own
-      // range (e.g. "Equal", "Inside", "Contains", "Overlaps" — the exact
-      // value depends on how much of the component's text is selected).
-      // This IS the component the user has selected/highlighted, so it
-      // takes priority over any Before/After neighbor.
       containingComponent = cc;
     }
   }
@@ -1348,17 +1465,6 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
   const activeContainerId = activeContainerIdRef?.current;
   const trackedContainer = await getContainerById(context, activeContainerId);
 
-  // Resolve from the LIVE selection first, every time. The tracked refs
-  // are updated asynchronously by the DocumentSelectionChanged handler
-  // (several Word.run/context.sync round-trips), so there is a window
-  // right after the user selects a component — and before that handler has
-  // finished running — where the refs still hold whatever was active
-  // before that selection. Trusting them in that window anchors the insert
-  // to the previously-active component instead of the one the user just
-  // selected. The live selection reflects the true, current cursor
-  // position and is checked first; the tracked refs remain as a fallback
-  // for Word Online, where focus moving into the taskpane can reset the
-  // document's ambient selection.
   const liveSelection = context.document.getSelection();
   const { container: liveContainer, selectedComponent: liveSelectedComponent } =
     await getContentControlContext(context, liveSelection);
@@ -1391,9 +1497,6 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
       }
     }
 
-    // The live selection didn't resolve usefully inside this container
-    // (e.g. focus moved to the taskpane and Word Online reset the ambient
-    // selection) — fall back to the tracked component ref.
     const trackedComponent = await getComponentById(context, activeComponentIdRef?.current);
     if (trackedComponent) {
       const anchorPosition = activeAnchorPositionRef?.current === "before" ? "before" : "after";
@@ -2056,6 +2159,123 @@ async function insertContainerThenLinkToLearning(
       await focusContentControl(context, cc);
     }
     log(`[nested-insert] logo-with-text inserted successfully`);
+  });
+}
+
+async function insertTableAtTarget(target, context, rows, cols, meta) {
+  // Word.Table has no insertContentControl() method -- only Body/Paragraph/
+  // Range/ContentControl do -- so we wrap the anchor paragraph in the
+  // content control FIRST, then use ContentControl.insertTable(...) (the
+  // API Word provides for placing a table inside/next to an existing
+  // content control) so the table ends up properly bounded.
+  const anchorParagraph = await createAnchorParagraph(target, "");
+  const cc = wrapInContentControl(anchorParagraph, meta);
+  await context.sync();
+
+  const data = Array.from({ length: rows }, () => Array.from({ length: cols }, () => " "));
+  const table = cc.insertTable(rows, cols, Word.InsertLocation.end, data);
+  await context.sync();
+
+  [
+    Word.BorderLocation.top,
+    Word.BorderLocation.bottom,
+    Word.BorderLocation.left,
+    Word.BorderLocation.right,
+    Word.BorderLocation.insideHorizontal,
+    Word.BorderLocation.insideVertical,
+  ].forEach((borderLocation) => {
+    const border = table.getBorder(borderLocation);
+    border.type = Word.BorderType.single;
+    border.color = "#BFBFBF";
+  });
+
+  // Merge every cell in the first row into a single header cell spanning
+  // the full table width, then center and bold its text.
+  const headerCell = cols > 1 ? table.mergeCells(0, 0, 0, cols - 1) : table.getCell(0, 0);
+  headerCell.body.clear();
+  const headerRange = headerCell.body.insertText("Header", Word.InsertLocation.start);
+  headerRange.font.bold = true;
+  headerCell.body.paragraphs.getFirst().alignment = Word.Alignment.centered;
+  await context.sync();
+
+  return cc;
+}
+
+async function insertTableComponent(rows, cols, COMPONENTS, currentFilterTheme, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef, componentMetaCacheRef) {
+  return Word.run(async (context) => {
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    const target = await getInsertionTarget(context, "table", activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
+    const cc = await insertTableAtTarget(target, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+      await focusContentControl(context, cc);
+    }
+  });
+}
+
+async function insertContainerThenTable(
+  containerType,
+  rows,
+  cols,
+  COMPONENTS,
+  activeContainerIdRef,
+  activeComponentIdRef,
+  activeAnchorPositionRef,
+  log = () => { },
+  currentFilterTheme,
+  componentMetaCacheRef
+) {
+  return Word.run(async (context) => {
+    log(`[nested-insert] resolving target for container "${containerType}"`);
+    const containerTarget = await getInsertionTarget(context, containerType, activeContainerIdRef, activeComponentIdRef, activeAnchorPositionRef);
+    const containerMeta = buildMeta(containerType, LAYOUT_COMPONENTS, currentFilterTheme);
+
+    const containerCc = await insertStyledComponent(
+      containerTarget,
+      context,
+      containerMeta,
+      { style: {} }
+    );
+    containerCc.load("id");
+    await context.sync();
+    log(`[nested-insert] container inserted, id=${containerCc.id}`);
+
+    if (activeContainerIdRef) {
+      activeContainerIdRef.current = containerCc.id;
+    }
+    if (activeComponentIdRef) {
+      activeComponentIdRef.current = null;
+    }
+    if (activeAnchorPositionRef) {
+      activeAnchorPositionRef.current = "after";
+    }
+
+    const meta = buildMeta("table", COMPONENTS, currentFilterTheme);
+    const childTarget = { mode: "container", container: containerCc };
+    const cc = await insertTableAtTarget(childTarget, context, rows, cols, meta);
+
+    if (cc && activeComponentIdRef) {
+      cc.load("id");
+      await context.sync();
+      activeComponentIdRef.current = cc.id;
+      if (activeAnchorPositionRef) {
+        activeAnchorPositionRef.current = "after";
+      }
+      if (componentMetaCacheRef) {
+        componentMetaCacheRef.current[cc.id] = meta;
+      }
+      await focusContentControl(context, cc);
+    }
+    log(`[nested-insert] table inserted successfully`);
   });
 }
 
