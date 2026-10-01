@@ -685,8 +685,39 @@ export default function App() {
         return;
       }
 
-      const webHeaders = new Headers();
       const templateId = currentFilterTheme;
+
+      if (clickType === "PACKAGE") {
+        const packageUrl = `${REACT_APP_WEB_BASE_URL}/pdf/package`;
+        const packageHeaders = new Headers();
+        packageHeaders.append("Content-Type", "application/json");
+        log(`Downloading package from: ${packageUrl}`);
+        try {
+          const packageResponse = await fetch(packageUrl, {
+            method: "POST",
+            headers: packageHeaders,
+            body: JSON.stringify({ documentId, tenantId, templateId })
+          });
+          if (!packageResponse.ok) {
+            log(`Package download HTTP error: ${packageResponse.status} ${packageResponse.statusText}`);
+            return;
+          }
+          const packageBlob = await packageResponse.blob();
+          const downloadUrl = URL.createObjectURL(packageBlob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = `${documentId}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          log(`Package downloaded successfully.`);
+        } catch (error) {
+          log(`Error occurred while fetching package: ${error.message}`);
+        }
+        return;
+      }
+
+      const webHeaders = new Headers();
       webHeaders.append("Content-Type", "application/json");
       const webOutputUrl = `${REACT_APP_WEB_BASE_URL}/${clickType === "PDF" ? "pdf" : "web"}`;
       log(`Uploading to: ${webOutputUrl}`);
@@ -1209,12 +1240,18 @@ export default function App() {
               >
                 {apiLoadingStatus && apiType === "WEB" ? "Cancel Chapter Generation.." : "Preview Chapter"}
               </button>
-              <button className="footer-btn footer-btn--pdf" onClick={() => { }} style={{ display: "none" }}>
+              <button
+                className={`footer-btn footer-btn--package ${apiLoadingStatus && apiType === "PACKAGE" ? "footer-btn--loading" : ""}`}
+                onClick={() => uploadDocument("PACKAGE")}
+              >
+                {apiLoadingStatus && apiType === "PACKAGE" ? "Cancel indesign package generation.." : "Generate InDesign package"}
+              </button>
+              {/* <button className="footer-btn footer-btn--pdf" onClick={() => { }} style={{ display: "none" }}>
                 Export EPUB
               </button>
               <button className="footer-btn footer-btn--pdf" onClick={() => { }} style={{ display: "none" }}>
                 Content Differences
-              </button>
+              </button> */}
             </div>
           </section>
         )}

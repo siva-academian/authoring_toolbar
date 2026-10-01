@@ -140,6 +140,10 @@ button:disabled {
   gap: 8px;
 }
 
+.publish-actions > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .ai-buttons {
   color: #297EFF;
   font-size: 12px;
@@ -719,21 +723,17 @@ layoutctl-panel {
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 
-.footer-btn--pdf {
+.footer-btn--pdf, .footer-btn--web, .footer-btn--package {
   background: #297EFF;
   color: #fff;
 }
 
 .footer-btn--pdf.footer-btn--loading,
-.footer-btn--web.footer-btn--loading {
+.footer-btn--web.footer-btn--loading,
+.footer-btn--package.footer-btn--loading {
   border: 1px solid #c00000;
   color: #c00000;
   background: #fff;
-}
-
-.footer-btn--web {
-  background: #297EFF;
-  color: #fff;
 }
 
 .footer-btn:hover:not(:disabled) {
@@ -746,7 +746,8 @@ layoutctl-panel {
 }
 
 .footer-btn--pdf.footer-btn--loading:hover,
-.footer-btn--web.footer-btn--loading:hover {
+.footer-btn--web.footer-btn--loading:hover,
+.footer-btn--package.footer-btn--loading:hover {
   background: #fff;
   color: #c00000;
 }
