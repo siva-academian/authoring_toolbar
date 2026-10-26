@@ -1232,14 +1232,14 @@ export default function App() {
                 className={`footer-btn footer-btn--pdf ${apiLoadingStatus && apiType === "PDF" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("PDF")}
               >
-                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview Chapter PDF"}
+                {apiLoadingStatus && apiType === "PDF" ? "Cancel PDF Generation.." : "Preview PDF"}
               </button>
-              <button
+              {/* <button
                 className={`footer-btn footer-btn--web ${apiLoadingStatus && apiType === "WEB" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("WEB")}
               >
                 {apiLoadingStatus && apiType === "WEB" ? "Cancel Chapter Generation.." : "Preview Chapter"}
-              </button>
+              </button> */}
               <button
                 className={`footer-btn footer-btn--package ${apiLoadingStatus && apiType === "PACKAGE" ? "footer-btn--loading" : ""}`}
                 onClick={() => uploadDocument("PACKAGE")}
