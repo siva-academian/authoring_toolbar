@@ -190,12 +190,20 @@ export default function App() {
               if (lastKnownMeta) {
                 const stillExists = await getComponentById(context, lastKnownComponentId);
                 if (!stillExists) {
+                  // FIX: only try to reclaim content in the paragraph where the
+                  // cursor actually is (selection is passed in), and only once.
                   reclaimedCc = await reclaimEscapedContent(
                     context,
                     container,
                     lastKnownMeta,
-                    componentMetaCacheRef
+                    componentMetaCacheRef,
+                    selection
                   );
+                  // FIX: the old component is gone -- drop every stale reference
+                  // to it so it can never be used as an insertion anchor again.
+                  delete componentMetaCacheRef.current[lastKnownComponentId];
+                  delete componentTextCacheRef.current[lastKnownComponentId];
+                  activeComponentIdRef.current = null;
                   if (reclaimedCc) {
                     resolvedComponentId = reclaimedCc.id;
                     resolvedAnchorPosition = "after";
@@ -263,6 +271,13 @@ export default function App() {
             activeContainerIdRef.current = container.id;
             activeComponentIdRef.current = resolvedComponentId;
             activeAnchorPositionRef.current = resolvedAnchorPosition;
+          } else {
+            // FIX: cursor is outside every container. Forget the previously
+            // tracked location so the next insert is based on the cursor,
+            // not on wherever a component used to be.
+            activeContainerIdRef.current = null;
+            activeComponentIdRef.current = null;
+            activeAnchorPositionRef.current = "after";
           }
         });
       } catch (err) {
@@ -1440,11 +1455,18 @@ async function findAdjacentComponents(context, container, selectionRange) {
     await context.sync();
 
     const relation = comparison.value;
-    if (relation === "Before") {
+    // FIX: "AdjacentBefore"/"AdjacentAfter" were previously treated as
+    // "containing", which anchored new components to the wrong place.
+    // The component is entirely before the cursor.
+    if (relation === "Before" || relation === "AdjacentBefore") {
       precedingComponent = cc;
-    } else if (relation === "After" && !followingComponent) {
-      followingComponent = cc;
-    } else if (relation !== "Before" && relation !== "After") {
+    } else if (relation === "After" || relation === "AdjacentAfter") {
+      // The component is entirely after the cursor (keep the first one).
+      if (!followingComponent) {
+        followingComponent = cc;
+      }
+    } else {
+      // Inside / Contains / Equal / Overlaps
       containingComponent = cc;
     }
   }
@@ -1499,41 +1521,48 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
     };
   }
 
-  const activeContainerId = activeContainerIdRef?.current;
-  const trackedContainer = await getContainerById(context, activeContainerId);
-
+  // FIX: the LIVE cursor position is now the source of truth. Previously the
+  // tracked (last-known) component/container was preferred, which caused new
+  // components to be inserted where a deleted component used to be, or in a
+  // different container than the one the cursor is in.
   const liveSelection = context.document.getSelection();
   const { container: liveContainer, selectedComponent: liveSelectedComponent } =
     await getContentControlContext(context, liveSelection);
 
-  if (trackedContainer) {
-    trackedContainer.load("id");
-    if (liveContainer) {
-      liveContainer.load("id");
-    }
+  if (liveContainer) {
+    liveContainer.load("id");
     await context.sync();
 
-    if (liveContainer && liveContainer.id === trackedContainer.id) {
-      if (liveSelectedComponent) {
-        return { mode: "after-component", component: liveSelectedComponent, container: trackedContainer };
-      }
-
-      const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(
-        context,
-        trackedContainer,
-        liveSelection
-      );
-      if (containingComponent) {
-        return { mode: "after-component", component: containingComponent, container: trackedContainer };
-      }
-      if (precedingComponent) {
-        return { mode: "after-component", component: precedingComponent, container: trackedContainer };
-      }
-      if (followingComponent) {
-        return { mode: "before-component", component: followingComponent, container: trackedContainer };
-      }
+    // Cursor is inside a component -> insert right AFTER that component.
+    if (liveSelectedComponent) {
+      return { mode: "after-component", component: liveSelectedComponent, container: liveContainer };
     }
 
+    // Cursor is in the container but not inside a component -> use the
+    // components nearest to the cursor.
+    const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(
+      context,
+      liveContainer,
+      liveSelection
+    );
+    if (containingComponent) {
+      return { mode: "after-component", component: containingComponent, container: liveContainer };
+    }
+    if (precedingComponent) {
+      return { mode: "after-component", component: precedingComponent, container: liveContainer };
+    }
+    if (followingComponent) {
+      return { mode: "before-component", component: followingComponent, container: liveContainer };
+    }
+
+    // Empty container (e.g. every component was deleted).
+    return { mode: "container", container: liveContainer };
+  }
+
+  // Cursor is not inside any container. Fall back to the tracked location
+  // only if it still exists in the document.
+  const trackedContainer = await getContainerById(context, activeContainerIdRef?.current);
+  if (trackedContainer) {
     const trackedComponent = await getComponentById(context, activeComponentIdRef?.current);
     if (trackedComponent) {
       const anchorPosition = activeAnchorPositionRef?.current === "before" ? "before" : "after";
@@ -1541,32 +1570,12 @@ async function getInsertionTarget(context, componentId, activeContainerIdRef, ac
         ? { mode: "before-component", component: trackedComponent, container: trackedContainer }
         : { mode: "after-component", component: trackedComponent, container: trackedContainer };
     }
-
     return { mode: "container", container: trackedContainer };
   }
 
-  if (!liveContainer) {
-    const err = new Error("OUTSIDE_CONTAINER");
-    err.code = "OUTSIDE_CONTAINER";
-    throw err;
-  }
-
-  if (liveSelectedComponent) {
-    return { mode: "after-component", component: liveSelectedComponent, container: liveContainer };
-  }
-
-  const { precedingComponent, followingComponent, containingComponent } = await findAdjacentComponents(context, liveContainer, liveSelection);
-  if (containingComponent) {
-    return { mode: "after-component", component: containingComponent, container: liveContainer };
-  }
-  if (precedingComponent) {
-    return { mode: "after-component", component: precedingComponent, container: liveContainer };
-  }
-  if (followingComponent) {
-    return { mode: "before-component", component: followingComponent, container: liveContainer };
-  }
-
-  return { mode: "container", container: liveContainer };
+  const err = new Error("OUTSIDE_CONTAINER");
+  err.code = "OUTSIDE_CONTAINER";
+  throw err;
 }
 
 async function createAnchorParagraph(target, initialText) {
@@ -1685,7 +1694,7 @@ async function reapplyStyleToComponent(context, cc, meta) {
   applyStyle(range, config.style || {});
 }
 
-async function reclaimEscapedContent(context, container, meta, componentMetaCacheRef) {
+async function reclaimEscapedContent(context, container, meta, componentMetaCacheRef, selection) {
   if (!meta) return null;
 
   container.load("id");
@@ -1698,8 +1707,23 @@ async function reclaimEscapedContent(context, container, meta, componentMetaCach
     paragraphRange.load("text");
     const parentCc = paragraphRange.parentContentControlOrNullObject;
     parentCc.load("isNullObject,id,tag");
+
+    // FIX: only consider the paragraph the cursor is actually in. Without
+    // this, any other plain-text paragraph in the container could be wrapped
+    // as the (deleted) component, which moved things to the wrong place.
+    let relation = null;
+    if (selection) {
+      relation = paragraphRange.compareLocationWith(selection);
+    }
     // eslint-disable-next-line no-await-in-loop
     await context.sync();
+
+    if (relation) {
+      const rel = relation.value;
+      const cursorInParagraph =
+        rel === "Contains" || rel === "Equal" || rel === "Inside" || rel === "Overlaps";
+      if (!cursorInParagraph) continue;
+    }
 
     const parentMeta = parentCc.isNullObject ? null : parseContentControlTag(parentCc.tag);
     const isEscaped = !parentMeta || parentMeta.type !== meta.type;
